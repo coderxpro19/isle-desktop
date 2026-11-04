@@ -1,0 +1,203 @@
+//! Island windows.
+//!
+//! Each island is a transparent, borderless, always-on-top window parked at the
+//! top-centre of a monitor and sized for the *largest* state the island can grow
+//! to. Everything outside the visible pill is click-through: the UI reports the
+//! rectangles it is currently drawing (`island_set_hit_rects`) and a lightweight
+//! thread watches the cursor, flipping `set_ignore_cursor_events` only when the
+//! cursor crosses a rectangle edge. Resizing the native window on every animation
+//! frame would stutter; this keeps animations purely inside the webview.
+
+use parking_lot::Mutex;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::time::Duration;
+use tauri::{
+    AppHandle, Emitter, Manager, Monitor, PhysicalPosition, State, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent,
+};
+
+use crate::{events, settings::SettingsStore};
+
+/// Logical size of the island canvas (max expanded size + room for shadows and bubbles).
+pub const CANVAS_W: f64 = 680.0;
+pub const CANVAS_H: f64 = 440.0;
+const LABEL_PREFIX: &str = "island-";
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
+pub struct Rect {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
+impl Rect {
+    fn contains(&self, x: f64, y: f64, slop: f64) -> bool {
+        x >= self.x - slop
+            && x <= self.x + self.w + slop
+            && y >= self.y - slop
+            && y <= self.y + self.h + slop
+    }
+}
+
+/// Interactive regions per island window, in logical px relative to the window.
+#[derive(Default)]
+pub struct HitRegions(Mutex<HashMap<String, Vec<Rect>>>);
+
+#[tauri::command]
+pub fn island_set_hit_rects(
+    window: tauri::Window,
+    regions: State<'_, HitRegions>,
+    rects: Vec<Rect>,
+) {
+    regions.0.lock().insert(window.label().to_string(), rects);
+}
+
+/// Called by the UI once the first frame is painted, so the window never flashes.
+#[tauri::command]
+pub fn island_ready(window: tauri::Window) -> Result<(), String> {
+    window.show().map_err(|e| e.to_string())?;
+    // Start fully click-through; the hit tester takes over from here.
+    window
+        .set_ignore_cursor_events(true)
+        .map_err(|e| e.to_string())
+}
+
+pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
+    // Phase 1: primary monitor only. Phase 5 adds one island per monitor; the
+    // label scheme (`island-<n>`) and hit tester already handle many windows.
+    let monitor = app.primary_monitor()?.or_else(|| {
+        app.available_monitors()
+            .ok()
+            .and_then(|m| m.into_iter().next())
+    });
+    let label = format!("{LABEL_PREFIX}0");
+
+    let win = WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
+        .title("Isle")
+        .inner_size(CANVAS_W, CANVAS_H)
+        .transparent(true)
+        .decorations(false)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .focused(false)
+        .visible(false)
+        .build()?;
+
+    if let Some(m) = monitor {
+        place(app, &win, &m);
+    }
+
+    let app2 = app.clone();
+    let win2 = win.clone();
+    win.on_window_event(move |e| {
+        if let WindowEvent::ScaleFactorChanged { .. } = e {
+            if let Ok(Some(m)) = win2.current_monitor() {
+                place(&app2, &win2, &m);
+            }
+        }
+    });
+    Ok(())
+}
+
+/// Top-centre of `monitor`, respecting the user's top offset.
+fn place(app: &AppHandle, win: &WebviewWindow, monitor: &Monitor) {
+    let scale = monitor.scale_factor();
+    let offset = app.state::<SettingsStore>().get().island.top_offset as f64;
+    let (x, y) = top_centre(
+        monitor.position().x as f64,
+        monitor.position().y as f64,
+        monitor.size().width as f64,
+        scale,
+        offset,
+    );
+    if let Err(e) = win.set_position(PhysicalPosition::new(x, y)) {
+        log::warn!("failed to place island: {e}");
+    }
+}
+
+fn top_centre(mon_x: f64, mon_y: f64, mon_w: f64, scale: f64, top_offset: f64) -> (i32, i32) {
+    let w = CANVAS_W * scale;
+    // The island's own top margin is drawn by the UI; the offset here is the
+    // user's extra nudge. Islands hug the top edge like the hardware notch.
+    let x = mon_x + (mon_w - w) / 2.0;
+    let y = mon_y + (top_offset - 6.0).max(0.0) * scale;
+    (x.round() as i32, y.round() as i32)
+}
+
+/// Watches the cursor and toggles click-through for every island window.
+pub fn spawn_hit_tester(app: AppHandle) {
+    std::thread::Builder::new()
+        .name("isle-hit-test".into())
+        .spawn(move || {
+            let mut inside_by_label: HashMap<String, bool> = HashMap::new();
+            loop {
+                let mut near_any = false;
+                if let Ok(cursor) = app.cursor_position() {
+                    for (label, win) in app.webview_windows() {
+                        if !label.starts_with(LABEL_PREFIX) {
+                            continue;
+                        }
+                        let (Ok(pos), Ok(scale)) = (win.outer_position(), win.scale_factor())
+                        else {
+                            continue;
+                        };
+                        let lx = (cursor.x - pos.x as f64) / scale;
+                        let ly = (cursor.y - pos.y as f64) / scale;
+                        near_any |= lx > -160.0
+                            && lx < CANVAS_W + 160.0
+                            && ly > -160.0
+                            && ly < CANVAS_H + 160.0;
+
+                        let inside = app
+                            .state::<HitRegions>()
+                            .0
+                            .lock()
+                            .get(&label)
+                            .map(|rects| rects.iter().any(|r| r.contains(lx, ly, 1.0)))
+                            .unwrap_or(false);
+
+                        let prev = inside_by_label.insert(label.clone(), inside);
+                        if prev != Some(inside) {
+                            let _ = win.set_ignore_cursor_events(!inside);
+                            let _ = app.emit_to(label.as_str(), events::ISLAND_HOVER, inside);
+                        }
+                    }
+                }
+                // ~60 Hz when the cursor is near an island, ~10 Hz otherwise.
+                std::thread::sleep(Duration::from_millis(if near_any { 16 } else { 100 }));
+            }
+        })
+        .expect("spawn hit-test thread");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn centres_on_secondary_monitor_with_scaling() {
+        // 2560px-wide monitor to the right of a 1920px primary, at 150%.
+        let (x, y) = top_centre(1920.0, 0.0, 2560.0, 1.5, 6.0);
+        assert_eq!(x, (1920.0 + (2560.0 - CANVAS_W * 1.5) / 2.0).round() as i32);
+        assert_eq!(y, 0);
+    }
+
+    #[test]
+    fn rect_contains_with_slop() {
+        let r = Rect {
+            x: 10.0,
+            y: 10.0,
+            w: 100.0,
+            h: 30.0,
+        };
+        assert!(r.contains(10.0, 10.0, 0.0));
+        assert!(r.contains(9.5, 40.5, 1.0));
+        assert!(!r.contains(200.0, 20.0, 1.0));
+    }
+}

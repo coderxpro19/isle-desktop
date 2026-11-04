@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --color-ok: #34d26a;
+  --color-warn: #ffcc33;
+  --color-danger: #ff453a;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-sans);
+  color: white;
+}
+
+/* Island windows: never show focus rings from mouse clicks, keep keyboard ones. */
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+button:focus-visible {
+  outline: 2px solid rgb(255 255 255 / 0.5);
+  outline-offset: 2px;
+}
+
+.isle-marquee {
+  animation: isle-marquee var(--marquee-dur, 6s) ease-in-out infinite alternate;
+}
+@keyframes isle-marquee {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--marquee-shift)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .isle-marquee { animation: none; }
+}
