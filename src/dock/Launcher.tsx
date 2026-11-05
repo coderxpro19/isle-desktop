@@ -51,23 +51,31 @@ export function Launcher({ onClose }: { onClose?(): void }) {
       .map(([a]) => a);
   }, [apps, query]);
 
-  // Lazily fetch icons for what's on screen (first 48 matches).
+  // Fetch icons for every listed app, a few at a time, in display order.
+  const queued = useRef(new Set<string>());
   useEffect(() => {
     if (!backend) return;
-    const want = shown.slice(0, 48).filter((a) => !(a.id in icons));
+    const want = shown.filter((a) => !queued.current.has(a.id));
     if (!want.length) return;
-    setIcons((m) => ({ ...m, ...Object.fromEntries(want.map((a) => [a.id, null])) }));
+    want.forEach((a) => queued.current.add(a.id));
     let i = 0;
+    let stopped = false;
     const next = (): Promise<void> | undefined => {
       const a = want[i++];
-      if (!a) return;
-      return backend.dockIcon(`app:${a.id}`).then((url) => {
-        setIcons((m) => ({ ...m, [a.id]: url }));
-        return next();
-      });
+      if (!a || stopped) return;
+      return backend
+        .dockIcon(`app:${a.id}`, a.pinKey)
+        .then((url) => setIcons((m) => ({ ...m, [a.id]: url })))
+        .catch(() => {})
+        .then(next);
     };
-    for (let k = 0; k < 6; k++) void next();
-  }, [backend, shown, icons]);
+    for (let k = 0; k < 4; k++) void next();
+    return () => {
+      // Let in-flight work finish but don't start more for an outdated list.
+      stopped = true;
+      want.slice(i).forEach((a) => queued.current.delete(a.id));
+    };
+  }, [backend, shown]);
 
   useEffect(() => setSel(0), [query]);
 
@@ -84,7 +92,7 @@ export function Launcher({ onClose }: { onClose?(): void }) {
         className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[rgba(22,22,26,0.97)] text-white shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
         onKeyDown={(e) => {
           if (e.key === "Escape") return menu ? setMenu(null) : close();
-          const max = Math.min(shown.length, 48) - 1;
+          const max = shown.length - 1;
           const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: COLS, ArrowUp: -COLS }[e.key];
           if (step !== undefined) {
             e.preventDefault();

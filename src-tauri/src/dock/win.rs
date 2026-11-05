@@ -35,19 +35,19 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyStoreForWindow};
 use windows::Win32::UI::Shell::{
     BHID_EnumItems, IEnumShellItems, IShellItem, IShellItem2, IShellItemImageFactory,
-    SHCreateItemFromParsingName, SHEmptyRecycleBinW, SHQueryRecycleBinW, ShellExecuteW,
-    SHQUERYRBINFO, SIGDN_NORMALDISPLAY, SIGDN_PARENTRELATIVEPARSING, SIIGBF_BIGGERSIZEOK,
-    SIIGBF_ICONONLY,
+    SHCreateItemFromParsingName, SHDefExtractIconW, SHEmptyRecycleBinW, SHQueryRecycleBinW,
+    ShellExecuteW, SHQUERYRBINFO, SIGDN_NORMALDISPLAY, SIGDN_PARENTRELATIVEPARSING,
+    SIIGBF_BIGGERSIZEOK, SIIGBF_ICONONLY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, EnumWindows, GetAncestor, GetForegroundWindow, GetMessageW, GetWindow,
-    GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
-    IsIconic, IsWindowVisible, PostMessageW, SetForegroundWindow, ShowWindow, TranslateMessage,
-    EVENT_OBJECT_CLOAKED, EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_NAMECHANGE,
-    EVENT_OBJECT_SHOW, EVENT_OBJECT_UNCLOAKED, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-    EVENT_SYSTEM_MINIMIZESTART, GA_ROOT, GWL_EXSTYLE, GW_OWNER, MSG, OBJID_WINDOW, SW_MINIMIZE,
-    SW_RESTORE, SW_SHOWNORMAL, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_CLOSE,
-    WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
+    DestroyIcon, DispatchMessageW, EnumWindows, GetAncestor, GetForegroundWindow, GetIconInfo,
+    GetMessageW, GetWindow, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+    GetWindowThreadProcessId, IsIconic, IsWindowVisible, PostMessageW, SetForegroundWindow,
+    ShowWindow, TranslateMessage, EVENT_OBJECT_CLOAKED, EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE,
+    EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_SHOW, EVENT_OBJECT_UNCLOAKED, EVENT_SYSTEM_FOREGROUND,
+    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GA_ROOT, GWL_EXSTYLE, GW_OWNER, HICON,
+    ICONINFO, MSG, OBJID_WINDOW, SW_MINIMIZE, SW_RESTORE, SW_SHOWNORMAL, WINEVENT_OUTOFCONTEXT,
+    WINEVENT_SKIPOWNPROCESS, WM_CLOSE, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
 };
 
 use super::{
@@ -408,18 +408,35 @@ pub fn window_action(h: i64, action: WindowAction) {
 
 /* ───────────────────────────── icons ───────────────────────────── */
 
-pub fn icon(key: &str) -> Option<String> {
+/// App icon as a PNG data URL. Tries, in order: the exe's own icon (plain
+/// Win32, works for every classic app), the shell's image for the item
+/// (packaged apps / AppsFolder entries), then `fallback_exe`.
+pub fn icon(key: &str, fallback_exe: Option<&str>) -> Option<String> {
     unsafe {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
     }
-    let parsing = if let Some(id) = key.strip_prefix("app:") {
-        format!("shell:AppsFolder\\{id}")
-    } else if key.contains(":\\") || key.starts_with("\\\\") {
-        key.to_string()
+    let is_path = |k: &str| k.contains(":\\") || k.starts_with("\\\\");
+    let png = if let Some(id) = key.strip_prefix("app:") {
+        pin_key_for(id)
+            .filter(|k| is_path(k))
+            .and_then(|p| exe_icon(&p))
+            .or_else(|| shell_image(&format!("shell:AppsFolder\\{id}")))
+    } else if is_path(key) {
+        exe_icon(key).or_else(|| shell_image(key))
     } else {
-        format!("shell:AppsFolder\\{key}")
+        shell_image(&format!("shell:AppsFolder\\{key}"))
     };
-    let item = shell_item(&parsing)?;
+    png.or_else(|| fallback_exe.filter(|p| is_path(p)).and_then(exe_icon))
+        .map(|bytes| {
+            format!(
+                "data:image/png;base64,{}",
+                base64::engine::general_purpose::STANDARD.encode(bytes)
+            )
+        })
+}
+
+fn shell_image(parsing: &str) -> Option<Vec<u8>> {
+    let item = shell_item(parsing)?;
     unsafe {
         let factory: IShellItemImageFactory = item.cast().ok()?;
         let bmp = factory
@@ -428,18 +445,39 @@ pub fn icon(key: &str) -> Option<String> {
                 SIIGBF_ICONONLY | SIIGBF_BIGGERSIZEOK,
             )
             .ok()?;
-        let png = bitmap_to_png(bmp);
+        let png = bitmap_to_png(bmp, true);
         let _ = DeleteObject(HGDIOBJ(bmp.0));
-        png.map(|bytes| {
-            format!(
-                "data:image/png;base64,{}",
-                base64::engine::general_purpose::STANDARD.encode(bytes)
-            )
-        })
+        png
     }
 }
 
-unsafe fn bitmap_to_png(bmp: HBITMAP) -> Option<Vec<u8>> {
+/// The large icon embedded in an exe, via SHDefExtractIcon (no COM).
+fn exe_icon(path: &str) -> Option<Vec<u8>> {
+    unsafe {
+        let mut large = HICON::default();
+        let size = 96u32;
+        SHDefExtractIconW(&HSTRING::from(path), 0, 0, Some(&mut large), None, size)
+            .ok()
+            .ok()?;
+        if large.is_invalid() {
+            return None;
+        }
+        let mut info = ICONINFO::default();
+        let png = if GetIconInfo(large, &mut info).is_ok() {
+            let png = bitmap_to_png(info.hbmColor, false);
+            let _ = DeleteObject(HGDIOBJ(info.hbmColor.0));
+            let _ = DeleteObject(HGDIOBJ(info.hbmMask.0));
+            png
+        } else {
+            None
+        };
+        let _ = DestroyIcon(large);
+        png
+    }
+}
+
+/// `premultiplied`: shell images are; icon bitmaps aren't.
+unsafe fn bitmap_to_png(bmp: HBITMAP, premultiplied: bool) -> Option<Vec<u8>> {
     let mut info = BITMAP::default();
     if GetObjectW(
         HGDIOBJ(bmp.0),
@@ -477,8 +515,19 @@ unsafe fn bitmap_to_png(bmp: HBITMAP) -> Option<Vec<u8>> {
     if lines == 0 {
         return None;
     }
-    // BGRA (premultiplied) → RGBA (straight).
+    // Legacy icons carry no alpha at all: treat them as opaque.
+    let no_alpha = px.chunks_exact(4).all(|p| p[3] == 0);
+    // BGRA → RGBA (straight alpha).
     for p in px.chunks_exact_mut(4) {
+        if no_alpha {
+            p.swap(0, 2);
+            p[3] = 255;
+            continue;
+        }
+        if !premultiplied {
+            p.swap(0, 2);
+            continue;
+        }
         let a = p[3] as u32;
         let (b, g, r) = (p[0] as u32, p[1] as u32, p[2] as u32);
         let un = |c: u32| {

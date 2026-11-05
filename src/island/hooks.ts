@@ -130,7 +130,7 @@ export function useTransientExpiry() {
  * brushing past the island on the way to a tab doesn't trigger it.
  */
 export function useHoverIntent() {
-  const pinned = useIsland((s) => s.pins > 0);
+  const pinned = useIsland((s) => s.pins > 0 || s.islandMenu);
   const hovered = useIsland((s) => s.hovered) || pinned;
   const mode = useIsland((s) => s.mode);
   const expandOnHover = useIsland((s) => s.settings.island.expandOnHover);
@@ -140,6 +140,11 @@ export function useHoverIntent() {
       const t = setTimeout(() => set(expandOnHover ? "expanded" : "peek"), 140);
       return () => clearTimeout(t);
     }
+    // Leaving the island closes its menu (after the same grace period).
+    if (!hovered && useIsland.getState().islandMenu) {
+      const t = setTimeout(() => useIsland.setState({ islandMenu: false }), 650);
+      return () => clearTimeout(t);
+    }
     if (!hovered && mode !== "compact") {
       const t = setTimeout(() => set("compact"), mode === "expanded" ? 650 : 180);
       return () => clearTimeout(t);
@@ -147,7 +152,11 @@ export function useHoverIntent() {
   }, [hovered, mode, expandOnHover]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && useIsland.getState().setMode("compact");
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (useIsland.getState().islandMenu) useIsland.setState({ islandMenu: false });
+      else useIsland.getState().setMode("compact");
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);

@@ -58,7 +58,7 @@ export function createTauriBackend(): Backend {
       await relaunch();
     },
     dockApps: () => invoke("dock_apps"),
-    dockIcon: (key) => invoke("dock_icon", { key }),
+    dockIcon: (key, fallback) => invoke("dock_icon", { key, fallback: fallback ?? null }),
     dockLaunch: (key) => invoke("dock_launch", { key }),
     dockWindow: (hwnd, action) => invoke("dock_window", { hwnd, action }),
     dockPin: (key, name, pinned) => invoke("dock_pin", { key, name, pinned }),
@@ -70,6 +70,8 @@ export function createTauriBackend(): Backend {
     launcherLaunch: (id) => invoke("launcher_launch", { id }),
     launcherToggle: (show) => invoke("launcher_toggle", { show: show ?? null }),
     power: (action) => invoke("power", { action }),
+    quit: () => invoke("app_quit"),
+    reload: () => invoke("app_reload"),
     weather: fetchWeather,
     geocode,
     on(event, cb) {

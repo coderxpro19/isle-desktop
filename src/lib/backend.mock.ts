@@ -91,11 +91,11 @@ export function createMockBackend(): Backend {
     figma: tile("#ff7262", "#a259ff", "F"),
   };
   let dockApps: DockApp[] = [
-    { key: "explorer", name: "File Explorer", pinned: true, running: true, active: false, windows: [{ hwnd: 11, title: "Downloads", minimized: false }] },
-    { key: "chrome", name: "Google Chrome", pinned: true, running: true, active: true, windows: [{ hwnd: 21, title: "Isle — GitHub", minimized: false }, { hwnd: 22, title: "Open-Meteo docs", minimized: false }] },
-    { key: "settings", name: "Settings", pinned: true, running: false, active: false, windows: [] },
-    { key: "code", name: "Visual Studio Code", pinned: false, running: true, active: false, windows: [{ hwnd: 31, title: "isle-desktop — Island.tsx", minimized: false }] },
-    { key: "spotify", name: "Spotify", pinned: false, running: true, active: false, windows: [{ hwnd: 41, title: "Spotify Premium", minimized: true }] },
+    { key: "explorer", name: "File Explorer", pinned: true, running: true, active: false, exe: null, windows: [{ hwnd: 11, title: "Downloads", minimized: false }] },
+    { key: "chrome", name: "Google Chrome", pinned: true, running: true, active: true, exe: null, windows: [{ hwnd: 21, title: "Isle — GitHub", minimized: false }, { hwnd: 22, title: "Open-Meteo docs", minimized: false }] },
+    { key: "settings", name: "Settings", pinned: true, running: false, active: false, exe: null, windows: [] },
+    { key: "code", name: "Visual Studio Code", pinned: false, running: true, active: false, exe: null, windows: [{ hwnd: 31, title: "isle-desktop — Island.tsx", minimized: false }] },
+    { key: "spotify", name: "Spotify", pinned: false, running: true, active: false, exe: null, windows: [{ hwnd: 41, title: "Spotify Premium", minimized: true }] },
   ];
   const emitDock = () => emit("dock://apps", dockApps);
   const LAUNCHER: LauncherApp[] = [
@@ -341,7 +341,7 @@ export function createMockBackend(): Backend {
     async dockPin(key, name, pinned) {
       const existing = dockApps.find((a) => a.key === key);
       if (existing) dockApps = dockApps.map((a) => (a.key === key ? { ...a, pinned } : a)).filter((a) => a.pinned || a.running);
-      else if (pinned) dockApps = [...dockApps, { key, name, pinned: true, running: false, active: false, windows: [] }];
+      else if (pinned) dockApps = [...dockApps, { key, name, pinned: true, running: false, active: false, exe: null, windows: [] }];
       dockApps = [...dockApps.filter((a) => a.pinned), ...dockApps.filter((a) => !a.pinned)];
       emitDock();
     },
@@ -361,6 +361,12 @@ export function createMockBackend(): Backend {
     },
     async power(action) {
       console.info(`[mock] power ${action}`);
+    },
+    async quit() {
+      console.info("[mock] quit");
+    },
+    async reload() {
+      location.reload();
     },
     async checkUpdate() {
       await sleep(400);

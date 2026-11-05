@@ -145,6 +145,8 @@ pub fn run() {
             dock::launcher_launch,
             dock::launcher_toggle,
             dock::power,
+            dock::app_quit,
+            dock::app_reload,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Isle")

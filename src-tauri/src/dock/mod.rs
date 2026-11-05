@@ -42,6 +42,8 @@ pub struct DockApp {
     pub running: bool,
     /// Owns the foreground window.
     pub active: bool,
+    /// An exe path for icon fallback (from a running window, or the pin itself).
+    pub exe: Option<String>,
     /// Most recently used first.
     pub windows: Vec<DockWindow>,
 }
@@ -127,12 +129,18 @@ pub fn merge(pinned: &[PinnedApp], windows: &[RawWindow], foreground: i64) -> Ve
                     }
                 })
                 .collect();
+            let exe = windows
+                .iter()
+                .find(|w| matches(&p.key, w))
+                .map(|w| w.exe.clone())
+                .or_else(|| p.key.contains(":\\").then(|| p.key.clone()));
             DockApp {
                 key: p.key.clone(),
                 name: p.name.clone(),
                 pinned: true,
                 running: !wins.is_empty(),
                 active: wins.iter().any(|w| w.hwnd == foreground),
+                exe,
                 windows: wins,
             }
         })
@@ -159,6 +167,7 @@ pub fn merge(pinned: &[PinnedApp], windows: &[RawWindow], foreground: i64) -> Ve
                 pinned: false,
                 running: true,
                 active: w.hwnd == foreground,
+                exe: Some(w.exe.clone()),
                 windows: vec![win],
             });
         }
@@ -336,7 +345,8 @@ pub fn ensure_default_pins(app: &AppHandle) {
 
 /// Bar height to reserve in fixed mode (logical px).
 pub fn bar_height(icon_size: u32) -> f64 {
-    icon_size as f64 + 28.0
+    // 8 px padding above and below the icons + 8 px gap to the screen edge.
+    icon_size as f64 + 24.0
 }
 
 /// Set once the dock UI has painted. Until then the taskbar is never touched,
@@ -485,16 +495,29 @@ pub fn dock_apps(svc: State<'_, DockService>) -> Vec<DockApp> {
     svc.apps.lock().clone()
 }
 
-/// App icon as a PNG data URL (cached). `key` is a dock key or `app:<AppsFolder id>`.
+/// App icon as a PNG data URL (cached). `key` is a dock key or `app:<AppsFolder id>`;
+/// `fallback` is an exe path to use if the key has no icon of its own.
 #[tauri::command]
-pub async fn dock_icon(app: AppHandle, key: String) -> Result<Option<String>, String> {
+pub async fn dock_icon(
+    app: AppHandle,
+    key: String,
+    fallback: Option<String>,
+) -> Result<Option<String>, String> {
     if let Some(hit) = app.state::<DockService>().icons.lock().get(&key) {
         return Ok(hit.clone());
     }
-    let k = key.clone();
-    let icon = tauri::async_runtime::spawn_blocking(move || platform_icon(&k))
-        .await
-        .map_err(|e| e.to_string())?;
+    let (k, f) = (key.clone(), fallback.clone());
+    // Shell icon extraction can stall on odd apps; never let one block the dock.
+    let icon = tauri::async_runtime::spawn_blocking(move || {
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(platform_icon(&k, f.as_deref()));
+        });
+        rx.recv_timeout(std::time::Duration::from_secs(4))
+            .unwrap_or(None)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
     app.state::<DockService>()
         .icons
         .lock()
@@ -503,11 +526,11 @@ pub async fn dock_icon(app: AppHandle, key: String) -> Result<Option<String>, St
 }
 
 #[cfg(windows)]
-fn platform_icon(key: &str) -> Option<String> {
-    win::icon(key)
+fn platform_icon(key: &str, fallback: Option<&str>) -> Option<String> {
+    win::icon(key, fallback)
 }
 #[cfg(not(windows))]
-fn platform_icon(_key: &str) -> Option<String> {
+fn platform_icon(_key: &str, _fallback: Option<&str>) -> Option<String> {
     None
 }
 
@@ -767,5 +790,19 @@ mod tests {
     #[test]
     fn bar_height_grows_with_icons() {
         assert!(bar_height(64) > bar_height(48));
+    }
+}
+
+#[tauri::command]
+pub fn app_quit(app: AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
+pub fn app_reload(app: AppHandle) {
+    for (label, win) in app.webview_windows() {
+        if label.starts_with("island-") || label.starts_with("dock-") || label == LAUNCHER_LABEL {
+            let _ = win.eval("location.reload()");
+        }
     }
 }

@@ -108,7 +108,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false },
   weather: { location: null, fahrenheit: false },
-  dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 48, pinned: null },
+  dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 40, pinned: null },
 };
 
 export interface DockWindow {
@@ -123,6 +123,8 @@ export interface DockApp {
   pinned: boolean;
   running: boolean;
   active: boolean;
+  /** Exe path for icon fallback. */
+  exe: string | null;
   windows: DockWindow[];
 }
 

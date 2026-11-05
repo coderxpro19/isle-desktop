@@ -24,7 +24,7 @@ export interface DockState {
   launching: Record<string, number>;
   recycleItems: number;
 
-  loadIcon(key: string): void;
+  loadIcon(key: string, fallback?: string | null): void;
 }
 
 export const useDock = create<DockState>((set, get) => ({
@@ -39,11 +39,11 @@ export const useDock = create<DockState>((set, get) => ({
   launching: {},
   recycleItems: 0,
 
-  loadIcon(key) {
+  loadIcon(key, fallback) {
     const { icons, backend } = get();
     if (key in icons || !backend) return;
     set((s) => ({ icons: { ...s.icons, [key]: null } }));
-    void backend.dockIcon(key).then((url) => set((s) => ({ icons: { ...s.icons, [key]: url } })));
+    void backend.dockIcon(key, fallback).then((url) => set((s) => ({ icons: { ...s.icons, [key]: url } })));
   },
 }));
 

@@ -85,7 +85,7 @@ impl Default for DockSettings {
             replace_taskbar: true,
             mode: DockMode::Fixed,
             magnification: true,
-            icon_size: 48,
+            icon_size: 40,
             pinned: None,
         }
     }
@@ -118,7 +118,7 @@ pub struct Appearance {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: SETTINGS_VERSION,
             island: Default::default(),
             appearance: Default::default(),
             weather: Default::default(),
@@ -153,6 +153,20 @@ impl Default for Appearance {
     }
 }
 
+pub const SETTINGS_VERSION: u32 = 2;
+
+/// Bring older settings files up to date.
+fn migrate(mut s: Settings) -> Settings {
+    if s.version < 2 {
+        // v2: smaller default dock (was 48 px).
+        if s.dock.icon_size == 48 {
+            s.dock.icon_size = 40;
+        }
+    }
+    s.version = SETTINGS_VERSION;
+    s
+}
+
 pub struct SettingsStore {
     path: Option<PathBuf>,
     inner: RwLock<Settings>,
@@ -175,6 +189,7 @@ impl SettingsStore {
                     None
                 }
             })
+            .map(migrate)
             .unwrap_or_default();
         Self {
             path,

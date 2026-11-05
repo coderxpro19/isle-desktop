@@ -46,7 +46,7 @@ export interface Backend {
   /** Download + install the update found by `checkUpdate`, then restart Isle. */
   installUpdate(onProgress: (fraction: number | null) => void): Promise<void>;
   dockApps(): Promise<DockApp[]>;
-  dockIcon(key: string): Promise<string | null>;
+  dockIcon(key: string, fallback?: string | null): Promise<string | null>;
   dockLaunch(key: string): Promise<void>;
   dockWindow(hwnd: number, action: WindowAction): Promise<void>;
   dockPin(key: string, name: string, pinned: boolean): Promise<void>;
@@ -58,6 +58,8 @@ export interface Backend {
   launcherLaunch(id: string): Promise<void>;
   launcherToggle(show?: boolean): Promise<void>;
   power(action: PowerAction): Promise<void>;
+  quit(): Promise<void>;
+  reload(): Promise<void>;
   on<K extends keyof EventMap>(event: K, cb: (payload: EventMap[K]) => void): () => void;
 }
 

@@ -5,6 +5,7 @@ import { BUBBLE, BUBBLE_GAP, PILL_TOP, TAB_BAR_H, deriveActivities, pillSize, ty
 import { CompactContent, ExpandedContent, PeekContent, useAccent } from "./components/Contents";
 import { BoltIcon, NoteIcon } from "./components/icons";
 import { TabBar } from "./components/TabBar";
+import { IslandMenu, MENU_H, MENU_W } from "./components/IslandMenu";
 import { UPDATE_BANNER_H, useShowUpdateBanner } from "./components/UpdateBanner";
 import {
   useBackendSync,
@@ -65,6 +66,10 @@ export function Island() {
     ? { duration: 0 }
     : { type: "spring", visualDuration: 0.42, bounce: mode === "compact" ? 0.18 : 0.3 };
 
+  const menuOpen = useIsland((s) => s.islandMenu);
+  // Below the pill; clamp so it fits in the canvas when the island is expanded.
+  const menuTop = Math.min(PILL_TOP + size.h + 8, CANVAS_H - MENU_H - 4);
+
   // Report interactive regions (at their *target* geometry) to the native hit tester.
   const lastRects = useRef("");
   useEffect(() => {
@@ -74,12 +79,13 @@ export function Island() {
     bubbles.forEach((_, i) =>
       rects.push({ x: pillX + size.w + BUBBLE_GAP + i * (BUBBLE + BUBBLE_GAP), y: PILL_TOP, w: BUBBLE, h: BUBBLE }),
     );
+    if (menuOpen) rects.push({ x: (CANVAS_W - MENU_W) / 2, y: menuTop, w: MENU_W, h: MENU_H });
     const json = JSON.stringify(rects);
     if (json !== lastRects.current) {
       lastRects.current = json;
       void backend.setHitRects(rects);
     }
-  }, [backend, size.w, size.h, bubbles]);
+  }, [backend, size.w, size.h, bubbles, menuOpen, menuTop]);
 
   // Show the native window only once something has painted.
   useEffect(() => {
@@ -109,7 +115,12 @@ export function Island() {
         transition={spring}
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          useIsland.setState({ islandMenu: !useIsland.getState().islandMenu });
+        }}
         onClick={() => {
+          if (useIsland.getState().islandMenu) return useIsland.setState({ islandMenu: false });
           if (mode === "expanded") return;
           // An update alert hands over to the banner on the Home tab.
           if (useIsland.getState().transient?.kind === "update") useIsland.setState({ transient: null, tab: "home" });
@@ -150,6 +161,8 @@ export function Island() {
           </motion.div>
         </AnimatePresence>
       </motion.div>
+
+      {menuOpen && <IslandMenu top={menuTop} />}
 
       <AnimatePresence>
         {bubbles.map((a, i) => (

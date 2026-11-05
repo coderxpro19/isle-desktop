@@ -54,6 +54,8 @@ export interface IslandState {
   controlsView: ControlsView;
   btPrompt: PairingPrompt | null;
   update: UpdateState;
+  /** Right-click menu open. */
+  islandMenu: boolean;
 
   setMode(mode: Mode): void;
   setTab(tab: Tab): void;
@@ -86,9 +88,10 @@ export const useIsland = create<IslandState>((set, get) => ({
   controlsView: "main",
   btPrompt: null,
   update: { kind: "idle" },
+  islandMenu: false,
 
   // Collapsing resets to the home tab, like iOS widgets do.
-  setMode: (mode) => set(mode === "compact" ? { mode, tab: "home", controlsView: "main" } : { mode }),
+  setMode: (mode) => set(mode === "compact" ? { mode, tab: "home", controlsView: "main", islandMenu: false } : { mode }),
   setTab: (tab) => set({ tab, controlsView: "main" }),
   pin() {
     set((s) => ({ pins: s.pins + 1 }));

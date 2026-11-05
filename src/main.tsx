@@ -14,6 +14,14 @@ async function boot() {
     const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
     const label = getCurrentWebviewWindow().label;
     log("info", "ui booting");
+    // No browser right-click menu (Back / Refresh / Print…) anywhere in Isle;
+    // views that need a menu draw their own.
+    window.addEventListener("contextmenu", (e) => e.preventDefault());
+    // Nor browser reload/print/find shortcuts.
+    window.addEventListener("keydown", (e) => {
+      const k = e.key.toLowerCase();
+      if (e.key === "F5" || ((e.ctrlKey || e.metaKey) && ["r", "p", "f", "g", "j", "u"].includes(k))) e.preventDefault();
+    });
     let view = <Island />;
     if (label.startsWith("dock-")) {
       const { Dock } = await import("@/dock/Dock");

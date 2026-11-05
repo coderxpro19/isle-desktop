@@ -5,9 +5,9 @@ import { DockMenu } from "./DockMenu";
 import { Previews } from "./Previews";
 import { dockVisible, magnify, useDock } from "./store";
 
-const PAD = 6; // horizontal padding around each icon
+const PAD = 5; // horizontal padding around each icon
 const SEP = 14; // separator slot width
-const BAR_PAD_Y = 10;
+const BAR_PAD_Y = 8;
 const BOTTOM = 8;
 
 /** Items along the bar, in order. */
@@ -81,7 +81,7 @@ export function Dock() {
       <div
         ref={bar}
         data-dock-bar
-        className="absolute left-1/2 flex items-end rounded-[22px] border border-white/10 bg-[rgba(20,20,24,0.78)] px-2 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+        className="absolute left-1/2 flex items-end rounded-[20px] border border-white/10 bg-[rgba(20,20,24,0.78)] px-2 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
         style={{
           bottom: BOTTOM,
           height: barH,
@@ -114,7 +114,7 @@ export function Dock() {
 function Slot({ width, children }: { width: number; children: ReactNode }) {
   return (
     <div className="relative flex shrink-0 justify-center" style={{ width, height: "100%", paddingBottom: BAR_PAD_Y }}>
-      <div className="absolute bottom-[10px] flex flex-col items-center">{children}</div>
+      <div className="absolute flex flex-col items-center" style={{ bottom: BAR_PAD_Y }}>{children}</div>
     </div>
   );
 }
@@ -137,7 +137,7 @@ function AppIcon({ app, size, centreX }: { app: DockApp; size: number; centreX: 
   const menuOpen = useDock((s) => !!s.menu);
   const previewKey = useDock((s) => s.preview?.key);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => loadIcon(app.key), [app.key, loadIcon]);
+  useEffect(() => loadIcon(app.key, app.exe), [app.key, app.exe, loadIcon]);
 
   const click = () => {
     useDock.setState({ preview: null });
