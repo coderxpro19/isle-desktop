@@ -51,12 +51,14 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
   left/right/double click delivery (v4 + legacy), overflow popup; icons handed back to Explorer on quit/crash
 - ⬜ Drag to reorder pins, jump lists, notification badges
 
-## Phase 4 — Shelf, calendar, notifications, HUDs ⬜
-- File/text shelf: drop onto the island, drag back out (OLE drag-drop)
-- Calendar (Windows calendar via WinRT + ICS feeds), timer / stopwatch / pomodoro activities
-- Notifications in the island (`UserNotificationListener`)
-- Volume/brightness HUD replacing the Windows flyout
-- Downloads and call activities
+## Phase 4 — Shelf, calendar, notifications, HUDs 🟨
+- ✅ Volume HUD replacing the Windows flyout (media keys hooked, toggle in island menu) + brightness HUD (v0.7.0)
+- ✅ Timer, stopwatch and Pomodoro as live activities with chime; Clock tab (v0.7.0)
+- ✅ Calendar from ICS feeds (Google, Outlook, iCloud): month grid, upcoming list, "next event" activity (v0.7.0)
+- ⬜ Notifications in the island (`UserNotificationListener`) — v0.8.0
+- ⬜ File/text shelf: drop onto the island, drag back out (OLE drag-drop) — v0.8.0
+- ⬜ Windows calendar accounts via WinRT `AppointmentStore`
+- ⬜ Downloads and call activities
 
 ## Phase 5 — Beyond Bloom ⬜
 - AI assistant: quick ask, summarise clipboard, voice; bring-your-own key (Claude, Gemini, OpenAI)

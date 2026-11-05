@@ -1,14 +1,17 @@
 import { AnimatePresence, motion, type Transition } from "motion/react";
 import { useEffect, useMemo, useRef } from "react";
 import type { Rect } from "@/lib/types";
-import { BUBBLE, BUBBLE_GAP, PILL_TOP, TAB_BAR_H, deriveActivities, pillSize, type Activity } from "./activities";
+import { BUBBLE, BUBBLE_GAP, CLOCK_KINDS, PILL_TOP, TAB_BAR_H, deriveActivities, pillSize, type Activity } from "./activities";
 import { CompactContent, ExpandedContent, PeekContent, useAccent } from "./components/Contents";
 import { BoltIcon, NoteIcon } from "./components/icons";
 import { TabBar } from "./components/TabBar";
+import { LiveBubbleIcon } from "./components/Live";
 import { IslandMenu, MENU_H, MENU_W } from "./components/IslandMenu";
 import { UPDATE_BANNER_H, useShowUpdateBanner } from "./components/UpdateBanner";
 import {
   useBackendSync,
+  useCalendar,
+  useClockAlarms,
   useClockTicker,
   useHoverIntent,
   usePanelDemand,
@@ -32,11 +35,15 @@ export function Island() {
   usePanelDemand();
   useWeather();
   useUpdater();
+  useClockAlarms();
+  useCalendar();
 
   const mode = useIsland((s) => s.mode);
   const media = useIsland((s) => s.media);
   const pausedAt = useIsland((s) => s.pausedAt);
   const transient = useIsland((s) => s.transient);
+  const clock = useIsland((s) => s.clock);
+  const events = useIsland((s) => s.events);
   const now = useIsland((s) => s.now);
   const backend = useIsland((s) => s.backend);
   const tab = useIsland((s) => s.tab);
@@ -44,10 +51,10 @@ export function Island() {
   const { setHovered, setMode } = useIsland.getState();
 
   const activities = useMemo(
-    () => deriveActivities({ media, pausedAt, transient }, Date.now()),
-    // `now` re-evaluates lingering paused activities every minute.
+    () => deriveActivities({ media, pausedAt, transient, clock, events }, Date.now()),
+    // `now` re-evaluates lingering paused activities / upcoming events every tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [media, pausedAt, transient, now],
+    [media, pausedAt, transient, clock, events, now],
   );
   const primary = activities[0]?.kind ?? null;
   const bubbles = activities.slice(1, 3);
@@ -123,7 +130,10 @@ export function Island() {
           if (useIsland.getState().islandMenu) return useIsland.setState({ islandMenu: false });
           if (mode === "expanded") return;
           // An update alert hands over to the banner on the Home tab.
-          if (useIsland.getState().transient?.kind === "update") useIsland.setState({ transient: null, tab: "home" });
+          const tk = useIsland.getState().transient?.kind;
+          if (tk === "update") useIsland.setState({ transient: null, tab: "home" });
+          else if (tk === "hud") useIsland.setState({ transient: null });
+          else if (primary && CLOCK_KINDS.includes(primary)) openClockFor(primary);
           setMode("expanded");
         }}
       >
@@ -194,6 +204,7 @@ function Bubble({ activity, index, pillW, spring }: { activity: Activity; index:
       onClick={() => {
         // Promote this activity: dismiss whatever transient is covering it.
         useIsland.setState({ transient: null });
+        if (CLOCK_KINDS.includes(activity.kind)) openClockFor(activity.kind);
         setMode("expanded");
       }}
     >
@@ -203,9 +214,16 @@ function Bubble({ activity, index, pillW, spring }: { activity: Activity; index:
         ) : (
           <NoteIcon size={15} style={{ color: accent }} />
         )
-      ) : (
+      ) : activity.kind === "charging" || activity.kind === "lowBattery" ? (
         <BoltIcon size={15} className={activity.kind === "charging" ? "text-ok" : "text-danger"} />
+      ) : (
+        <LiveBubbleIcon kind={activity.kind} />
       )}
     </motion.button>
   );
+}
+
+function openClockFor(kind: Activity["kind"]) {
+  const clockView = kind === "event" ? "calendar" : kind === "pomodoro" ? "focus" : kind === "stopwatch" ? "stopwatch" : "timer";
+  useIsland.setState({ tab: "clock", clockView, transient: kind === "timerDone" ? null : useIsland.getState().transient });
 }

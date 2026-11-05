@@ -3,6 +3,8 @@ import { getBackend } from "@/lib/backend";
 import { extractAccent } from "@/lib/color";
 import { spectrumBus } from "@/lib/spectrum";
 import { WEATHER_TTL_MS } from "@/lib/weather";
+import { parseIcs } from "@/lib/ics";
+import { chime, nextPhase } from "./clock";
 import type { MediaState } from "@/lib/types";
 import { useIsland } from "./store";
 
@@ -36,6 +38,10 @@ export function useBackendSync() {
         backend.on("controls://changed", (controls) => useIsland.setState({ controls })),
         backend.on("stats://tick", (t) => useIsland.getState().pushStats(t)),
         backend.on("bt://pairing", (btPrompt) => useIsland.setState({ btPrompt })),
+        backend.on("hud://show", (hud) => {
+          if (!useIsland.getState().settings.island.volumeHud && hud.kind === "volume") return;
+          useIsland.setState({ transient: { kind: "hud", hud, until: Date.now() + 1600 } });
+        }),
       );
 
       const [settings, battery, media, art, controls] = await Promise.all([
@@ -233,4 +239,85 @@ export function useUpdater() {
       off();
     };
   }, [backend]);
+}
+
+/** Fire timer / Pomodoro completions exactly on time. */
+export function useClockAlarms() {
+  const clock = useIsland((s) => s.clock);
+  useEffect(() => {
+    const now = Date.now();
+    const waits: ReturnType<typeof setTimeout>[] = [];
+    const t = clock.timer;
+    if (t?.endsAt) {
+      waits.push(
+        setTimeout(() => {
+          chime();
+          useIsland.setState((s) => ({
+            clock: { ...s.clock, timer: null },
+            transient: { kind: "timerDone", label: t.label, until: Date.now() + 8000 },
+          }));
+        }, Math.max(0, t.endsAt - now)),
+      );
+    }
+    const p = clock.pomodoro;
+    if (p?.endsAt) {
+      waits.push(
+        setTimeout(() => {
+          chime();
+          const label = p.phase === "focus" ? "Focus done — take a break" : "Break over — back to focus";
+          useIsland.setState((s) => ({
+            clock: { ...s.clock, pomodoro: s.clock.pomodoro && nextPhase(s.clock.pomodoro, Date.now()) },
+            transient: { kind: "timerDone", label, until: Date.now() + 6000 },
+          }));
+        }, Math.max(0, p.endsAt - now)),
+      );
+    }
+    return () => waits.forEach(clearTimeout);
+  }, [clock.timer, clock.pomodoro]);
+}
+
+/** Re-render every `ms` while `active` (countdowns, stopwatch). */
+export function useTicker(active: boolean, ms = 250): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(id);
+  }, [active, ms]);
+  return active ? now : Date.now();
+}
+
+const CALENDAR_EVERY_MS = 15 * 60_000;
+
+/** Download + parse calendar feeds on start, every 15 minutes, and when feeds change. */
+export function useCalendar() {
+  const backend = useIsland((s) => s.backend);
+  const feeds = useIsland((s) => s.settings.calendar.feeds);
+  const key = feeds.map((f) => f.url).join("|");
+  useEffect(() => {
+    if (!backend) return;
+    if (!feeds.length) {
+      useIsland.setState({ events: [], calendarError: null });
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      const day = new Date();
+      day.setHours(0, 0, 0, 0);
+      const from = day.getTime() - 86400_000;
+      const to = day.getTime() + 42 * 86400_000;
+      const res = await backend.calendarFetch(feeds.map((f) => f.url)).catch(() => []);
+      if (cancelled) return;
+      const events = res.flatMap((r) => (r.ics ? parseIcs(r.ics, r.url, from, to) : [])).sort((a, b) => a.start - b.start);
+      const failed = res.filter((r) => r.error);
+      useIsland.setState({ events, calendarError: failed.length ? `${failed.length} calendar${failed.length > 1 ? "s" : ""} couldn't load: ${failed[0]!.error}` : null });
+    };
+    void load();
+    const id = setInterval(() => void load(), CALENDAR_EVERY_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backend, key]);
 }

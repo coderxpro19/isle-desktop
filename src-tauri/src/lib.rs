@@ -18,11 +18,13 @@
 //! - `events`   names of every event emitted to the UI
 
 mod audio;
+mod calendar;
 mod connect;
 mod controls;
 mod dock;
 mod events;
 mod fullscreen;
+mod hud;
 mod island;
 mod media;
 mod power;
@@ -91,6 +93,13 @@ pub fn run() {
             log::info!("setup: island window created");
             island::spawn_hit_tester(handle.clone());
             fullscreen::spawn(handle.clone());
+            hud::set_enabled(
+                app.state::<settings::SettingsStore>()
+                    .get()
+                    .island
+                    .volume_hud,
+            );
+            hud::spawn();
             log::info!("setup: watchers started");
             // Tray first: whatever happens next, the user can quit or open the logs.
             tray::create(&handle)?;
@@ -150,6 +159,7 @@ pub fn run() {
             dock::power,
             dock::app_quit,
             tray_host::tray_icons,
+            calendar::calendar_fetch,
             tray_host::tray_click,
             dock::app_reload,
         ])

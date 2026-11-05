@@ -46,6 +46,15 @@ pub struct BrightnessState {
     pub source: &'static str,
 }
 
+/// What the island's volume/brightness HUD shows.
+#[cfg_attr(not(windows), allow(dead_code))]
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum Hud {
+    Volume { level: f32, muted: bool },
+    Brightness { level: u8 },
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RadioInfo {
@@ -73,11 +82,26 @@ pub struct NetworkState {
     rename_all_fields = "camelCase"
 )]
 pub enum ControlAction {
-    SetVolume { level: f32 },
-    SetMute { muted: bool },
-    SetBrightness { level: u8 },
-    SetWifi { on: bool },
-    SetBluetooth { on: bool },
+    SetVolume {
+        level: f32,
+    },
+    SetMute {
+        muted: bool,
+    },
+    SetBrightness {
+        level: u8,
+    },
+    SetWifi {
+        on: bool,
+    },
+    SetBluetooth {
+        on: bool,
+    },
+    /// Volume keys (from the keyboard hook): nudge and show the HUD.
+    StepVolume {
+        delta: f32,
+    },
+    ToggleMute,
 }
 
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -85,13 +109,17 @@ pub enum ControlAction {
 pub(crate) enum Msg {
     Action(ControlAction),
     Active(bool),
-    /// Volume callback fired (level, muted, caused-by-us).
-    Volume(f32, bool),
+    /// Volume callback fired (level, muted, show the HUD).
+    Volume(f32, bool, bool),
     /// Default output device changed.
     DeviceChanged,
     RadiosChanged,
     NetworkChanged,
 }
+
+/// For the keyboard hook, which runs outside Tauri state.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) static CONTROLS_TX: std::sync::OnceLock<mpsc::Sender<Msg>> = std::sync::OnceLock::new();
 
 pub struct ControlsService {
     tx: mpsc::Sender<Msg>,
@@ -101,6 +129,7 @@ pub struct ControlsService {
 impl ControlsService {
     pub fn spawn(app: AppHandle) -> Self {
         let (tx, rx) = mpsc::channel();
+        let _ = CONTROLS_TX.set(tx.clone());
         let state = Arc::new(Mutex::new(ControlsState::default()));
         #[cfg(windows)]
         {
@@ -182,6 +211,21 @@ pub(crate) fn coalesce(actions: Vec<ControlAction>) -> Vec<ControlAction> {
     out
 }
 
+/// Next volume after a key press: Windows-style 2 % steps, snapped to the grid.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn step_volume(level: f32, delta: f32) -> f32 {
+    // Off-grid levels (set by a slider) move to the next grid point in the
+    // direction pressed, not past it.
+    let base = level * 50.0;
+    let steps = (delta * 50.0).round();
+    let start = if steps > 0.0 {
+        (base + 1e-3).floor()
+    } else {
+        (base - 1e-3).ceil()
+    };
+    ((start + steps) / 50.0).clamp(0.0, 1.0)
+}
+
 /// Windows reports Wi-Fi strength as 0–5 bars.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn clamp_bars(bars: u8) -> u8 {
@@ -214,6 +258,15 @@ mod tests {
             clamp(ControlAction::SetBrightness { level: 250 }),
             ControlAction::SetBrightness { level: 100 }
         );
+    }
+
+    #[test]
+    fn volume_steps_snap_and_clamp() {
+        assert!((step_volume(0.5, 0.02) - 0.52).abs() < 1e-6);
+        assert!((step_volume(0.513, 0.02) - 0.52).abs() < 1e-6);
+        assert!((step_volume(0.513, -0.02) - 0.50).abs() < 1e-6);
+        assert_eq!(step_volume(0.99, 0.02), 1.0);
+        assert_eq!(step_volume(0.01, -0.02), 0.0);
     }
 
     #[test]

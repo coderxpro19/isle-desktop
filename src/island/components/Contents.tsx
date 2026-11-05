@@ -6,7 +6,9 @@ import { usePlaybackPosition } from "../hooks";
 import { useIsland } from "../store";
 import { describe } from "@/lib/weather";
 import type { Tab } from "../store";
+import { ClockPanel } from "./ClockPanel";
 import { ControlsPanel } from "./ControlsPanel";
+import { LIVE_KINDS, LiveContent } from "./Live";
 import { BatteryGlyph, BoltIcon, MoonIcon, NextIcon, NoteIcon, PauseIcon, PlayIcon, PrevIcon, WeatherGlyph } from "./icons";
 import { StatsPanel } from "./StatsPanel";
 import { UpdateBanner, UpdateDot } from "./UpdateBanner";
@@ -70,6 +72,8 @@ export function CompactContent({ primary }: { primary: ActivityKind | null }) {
   const media = useIsland((s) => s.media);
   const accent = useAccent();
   const transient = useIsland((s) => s.transient);
+
+  if (primary && LIVE_KINDS.includes(primary)) return <LiveContent kind={primary} />;
 
   if (primary === "update" && transient?.kind === "update") {
     return (
@@ -142,6 +146,8 @@ export function PeekContent({ primary }: { primary: ActivityKind | null }) {
   const now = useIsland((s) => s.now);
   const accent = useAccent();
 
+  if (primary && LIVE_KINDS.includes(primary)) return <LiveContent kind={primary} big />;
+
   if (primary === "music" && media) {
     return (
       <div className="flex h-full items-center gap-3 px-[10px]">
@@ -176,6 +182,8 @@ export function ExpandedContent({ primary, tab }: { primary: ActivityKind | null
       return <WeatherPanel />;
     case "stats":
       return <StatsPanel />;
+    case "clock":
+      return <ClockPanel />;
     case "home":
       return (
         <div className="flex h-full flex-col">

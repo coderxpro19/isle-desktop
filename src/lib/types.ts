@@ -56,6 +56,7 @@ export interface Settings {
     chargingActivity: boolean;
     hideInFullscreen: boolean;
     focusMode: boolean;
+    volumeHud: boolean;
   };
   appearance: {
     accent: string;
@@ -64,6 +65,13 @@ export interface Settings {
   };
   weather: WeatherSettings;
   dock: DockSettings;
+  calendar: { feeds: CalendarFeed[] };
+}
+
+export interface CalendarFeed {
+  url: string;
+  name: string;
+  color: string;
 }
 
 export type DockMode = "fixed" | "autoHide" | "smart";
@@ -105,11 +113,15 @@ export const DEFAULT_SETTINGS: Settings = {
     chargingActivity: true,
     hideInFullscreen: true,
     focusMode: false,
+    volumeHud: true,
   },
   appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false },
   weather: { location: null, fahrenheit: false },
   dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 40, pinned: null },
+  calendar: { feeds: [] },
 };
+
+export type Hud = { kind: "volume"; level: number; muted: boolean } | { kind: "brightness"; level: number };
 
 export interface DockWindow {
   hwnd: number;
@@ -252,5 +264,6 @@ export interface EventMap {
   "dock://apps": DockApp[];
   "dock://overlap": boolean;
   "tray://icons": TrayIcon[];
+  "hud://show": Hud;
   "launcher://opened": null;
 }

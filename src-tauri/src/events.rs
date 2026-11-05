@@ -18,3 +18,6 @@ pub const DOCK_APPS: &str = "dock://apps";
 pub const DOCK_OVERLAP: &str = "dock://overlap";
 pub const LAUNCHER_OPENED: &str = "launcher://opened";
 pub const TRAY_ICONS: &str = "tray://icons";
+/// Volume / brightness HUD (`controls::Hud`).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const HUD: &str = "hud://show";

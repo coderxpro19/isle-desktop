@@ -156,3 +156,12 @@ export function WeatherGlyph({ kind, day = true, size = 24 }: { kind: import("@/
     </svg>
   );
 }
+export const TimerIcon = (p: P) => (
+  <svg {...stroke(p)}><circle cx="12" cy="13.5" r="7.5" /><path d="M12 9.5v4l2.5 2M9.5 2.5h5" /></svg>
+);
+export const CalendarIcon = (p: P) => (
+  <svg {...stroke(p)}><rect x="4" y="5" width="16" height="15" rx="2.5" /><path d="M4 10h16M8.5 3v4M15.5 3v4" /></svg>
+);
+export const FlagIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>
+);

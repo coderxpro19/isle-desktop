@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { Backend } from "@/lib/backend";
-import type { BatteryState, ControlsState, MediaState, PairingPrompt, Settings, StatsTick, UpdateInfo, Weather } from "@/lib/types";
+import type { BatteryState, ControlsState, Hud, MediaState, PairingPrompt, Settings, StatsTick, UpdateInfo, Weather } from "@/lib/types";
+import type { CalEvent } from "@/lib/ics";
+import { EMPTY_CLOCK, type ClockState } from "./clock";
 import { DEFAULT_SETTINGS } from "@/lib/types";
 
 export type Mode = "compact" | "peek" | "expanded";
@@ -12,7 +14,8 @@ export type UpdateState =
   | { kind: "available"; info: UpdateInfo }
   | { kind: "installing"; info: UpdateInfo; progress: number | null }
   | { kind: "error"; message: string; info?: UpdateInfo };
-export type Tab = "home" | "controls" | "weather" | "stats";
+export type Tab = "home" | "controls" | "clock" | "weather" | "stats";
+export type ClockView = "timer" | "stopwatch" | "focus" | "calendar";
 /** Sub-page inside the Controls tab. */
 export type ControlsView = "main" | "wifi" | "bluetooth";
 
@@ -23,7 +26,9 @@ export const STATS_HISTORY = 60;
 export type Transient =
   | { kind: "charging"; percent: number | null; until: number }
   | { kind: "lowBattery"; percent: number; until: number }
-  | { kind: "update"; version: string; until: number };
+  | { kind: "update"; version: string; until: number }
+  | { kind: "hud"; hud: Hud; until: number }
+  | { kind: "timerDone"; label: string; until: number };
 
 export interface IslandState {
   backend: Backend | null;
@@ -56,6 +61,10 @@ export interface IslandState {
   update: UpdateState;
   /** Right-click menu open. */
   islandMenu: boolean;
+  clock: ClockState;
+  clockView: ClockView;
+  events: CalEvent[];
+  calendarError: string | null;
 
   setMode(mode: Mode): void;
   setTab(tab: Tab): void;
@@ -89,6 +98,10 @@ export const useIsland = create<IslandState>((set, get) => ({
   btPrompt: null,
   update: { kind: "idle" },
   islandMenu: false,
+  clock: EMPTY_CLOCK,
+  clockView: "timer",
+  events: [],
+  calendarError: null,
 
   // Collapsing resets to the home tab, like iOS widgets do.
   setMode: (mode) => set(mode === "compact" ? { mode, tab: "home", controlsView: "main", islandMenu: false } : { mode }),

@@ -60,6 +60,8 @@ export interface Backend {
   power(action: PowerAction): Promise<void>;
   quit(): Promise<void>;
   trayIcons(): Promise<TrayIcon[]>;
+  /** Download ICS feeds (natively: calendar servers don't allow browser fetches). */
+  calendarFetch(urls: string[]): Promise<{ url: string; ics: string | null; error: string | null }[]>;
   /** x/y: icon centre in dock-window px. */
   trayClick(id: string, button: TrayButton, x: number, y: number): Promise<void>;
   reload(): Promise<void>;

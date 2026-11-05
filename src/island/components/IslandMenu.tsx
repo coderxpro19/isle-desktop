@@ -4,7 +4,7 @@ import { useIsland, type Tab } from "../store";
 
 export const MENU_W = 248;
 /** Fixed height so the hit-test rect is known without measuring. */
-export const MENU_H = 346;
+export const MENU_H = 408;
 
 const SIZES: [number, string][] = [
   [32, "S"],
@@ -22,6 +22,7 @@ const MODES: [DockMode, string][] = [
 export function IslandMenu({ top }: { top: number }) {
   const backend = useIsland((s) => s.backend);
   const dock = useIsland((s) => s.settings.dock);
+  const volumeHud = useIsland((s) => s.settings.island.volumeHud);
   const updateSettings = useIsland((s) => s.updateSettings);
   const close = () => useIsland.setState({ islandMenu: false });
   const open = (tab: Tab) => () => {
@@ -38,8 +39,13 @@ export function IslandMenu({ top }: { top: number }) {
       onPointerEnter={() => useIsland.getState().setHovered(true)}
     >
       <Item onClick={open("controls")}>Controls</Item>
+      <Item onClick={open("clock")}>Clock &amp; Calendar</Item>
       <Item onClick={open("weather")}>Weather</Item>
       <Item onClick={open("stats")}>System</Item>
+      <div className="flex items-center justify-between px-2.5 py-1">
+        <span>Volume pop-up</span>
+        <Toggle on={volumeHud} onChange={(v) => updateSettings((s) => ({ ...s, island: { ...s.island, volumeHud: v } }))} />
+      </div>
       <Sep />
       <div className="flex items-center justify-between px-2.5 py-1">
         <span>Dock</span>

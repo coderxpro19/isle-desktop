@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use windows::core::{implement, GUID, PCWSTR};
 use windows::Devices::Radios::{Radio, RadioKind, RadioState};
 use windows::Foundation::TypedEventHandler;
@@ -30,7 +30,9 @@ use super::{
     NetworkState, RadioInfo, VolumeState,
 };
 
-/// Tags volume changes we make ourselves, so a future HUD can ignore them.
+/// Volume changes made by the HUD path (volume keys) — these *should* show the HUD.
+pub const HUD_EVENT_CONTEXT: GUID = GUID::from_u128(0x6c1b_3a52_7f0e_4e2b_9a0d_15e1_e500_0002);
+/// Tags volume changes made from the island's own slider (no HUD for those).
 pub const ISLE_EVENT_CONTEXT: GUID = GUID::from_u128(0x6c1b_3a52_7f0e_4e2b_9a0d_15e1_e500_0001);
 
 #[implement(IAudioEndpointVolumeCallback)]
@@ -39,9 +41,11 @@ struct VolumeCallback(Sender<Msg>);
 impl IAudioEndpointVolumeCallback_Impl for VolumeCallback_Impl {
     fn OnNotify(&self, data: *mut AUDIO_VOLUME_NOTIFICATION_DATA) -> windows::core::Result<()> {
         if let Some(d) = unsafe { data.as_ref() } {
+            // Our slider: no HUD. Our volume keys and anyone else: HUD.
+            let hud = d.guidEventContext != ISLE_EVENT_CONTEXT;
             let _ = self
                 .0
-                .send(Msg::Volume(d.fMasterVolume, d.bMuted.as_bool()));
+                .send(Msg::Volume(d.fMasterVolume, d.bMuted.as_bool(), hud));
         }
         Ok(())
     }
@@ -277,9 +281,19 @@ pub fn run(app: AppHandle, shared: Arc<Mutex<ControlsState>>, tx: Sender<Msg>, r
 
     let mut active = false;
     let mut last_brightness_poll = Instant::now();
+    let mut last_brightness_set = Instant::now() - Duration::from_secs(10);
+    // Only laptop panels (WMI) are cheap enough to watch continuously.
+    let brightness_internal = shared
+        .lock()
+        .brightness
+        .as_ref()
+        .is_some_and(|b| b.source == "internal");
     loop {
-        let wait = if active {
-            Duration::from_millis(1500)
+        // Laptop-panel brightness is watched once a second (for the HUD);
+        // otherwise poll only while the controls are open.
+        let watch_brightness = brightness_internal;
+        let wait = if active || watch_brightness {
+            Duration::from_millis(1000)
         } else {
             Duration::from_secs(3600)
         };
@@ -294,6 +308,7 @@ pub fn run(app: AppHandle, shared: Arc<Mutex<ControlsState>>, tx: Sender<Msg>, r
         let mut refresh_radios = false;
         let mut refresh_network = false;
         let mut volume_update = None;
+        let mut show_hud: Option<super::Hud> = None;
         for m in msgs {
             match m {
                 Msg::Action(a) => actions.push(a),
@@ -306,7 +321,12 @@ pub fn run(app: AppHandle, shared: Arc<Mutex<ControlsState>>, tx: Sender<Msg>, r
                         });
                     }
                 }
-                Msg::Volume(level, muted) => volume_update = Some((level, muted)),
+                Msg::Volume(level, muted, hud) => {
+                    volume_update = Some((level, muted));
+                    if hud {
+                        show_hud = Some(super::Hud::Volume { level, muted });
+                    }
+                }
                 Msg::DeviceChanged => {
                     endpoint = enumerator
                         .as_ref()
@@ -349,10 +369,46 @@ pub fn run(app: AppHandle, shared: Arc<Mutex<ControlsState>>, tx: Sender<Msg>, r
                         });
                     }
                     last_brightness_poll = Instant::now();
+                    last_brightness_set = Instant::now();
                 }
                 ControlAction::SetWifi { on } => Radios::set(&radios.wifi, on),
                 ControlAction::SetBluetooth { on } => Radios::set(&radios.bluetooth, on),
+                ControlAction::StepVolume { delta } => {
+                    if let Some(ep) = &endpoint {
+                        unsafe {
+                            let cur = ep.volume.GetMasterVolumeLevelScalar().unwrap_or(0.0);
+                            let next = super::step_volume(cur, delta);
+                            let _ = ep
+                                .volume
+                                .SetMasterVolumeLevelScalar(next, &HUD_EVENT_CONTEXT);
+                            if ep.volume.GetMute().map(|m| m.as_bool()).unwrap_or(false)
+                                && delta > 0.0
+                            {
+                                let _ = ep.volume.SetMute(false, &HUD_EVENT_CONTEXT);
+                            }
+                            // At the limits the level doesn't change, so no callback: show anyway.
+                            if (next - cur).abs() < f32::EPSILON {
+                                show_hud = Some(super::Hud::Volume {
+                                    level: next,
+                                    muted: false,
+                                });
+                            }
+                        }
+                    }
+                }
+                ControlAction::ToggleMute => {
+                    if let Some(ep) = &endpoint {
+                        unsafe {
+                            let m = ep.volume.GetMute().map(|m| m.as_bool()).unwrap_or(false);
+                            let _ = ep.volume.SetMute(!m, &HUD_EVENT_CONTEXT);
+                        }
+                    }
+                }
             }
+        }
+
+        if let Some(h) = show_hud.take() {
+            let _ = app.emit(crate::events::HUD, h);
         }
 
         if let Some((level, muted)) = volume_update {
@@ -377,9 +433,18 @@ pub fn run(app: AppHandle, shared: Arc<Mutex<ControlsState>>, tx: Sender<Msg>, r
             publish(&app, &shared, |s| s.network = n);
         }
         // Brightness can change from the keyboard or Windows; poll while visible.
-        if active && last_brightness_poll.elapsed() >= Duration::from_millis(1400) {
+        if (active || watch_brightness)
+            && last_brightness_poll.elapsed() >= Duration::from_millis(950)
+        {
             last_brightness_poll = Instant::now();
             let b = brightness.get();
+            let before = shared.lock().brightness.as_ref().map(|b| b.level);
+            if let (Some(prev), Some(now)) = (before, b.as_ref().map(|b| b.level)) {
+                // Changed outside Isle's slider (brightness keys, Windows): HUD.
+                if prev != now && last_brightness_set.elapsed() > Duration::from_secs(2) {
+                    let _ = app.emit(crate::events::HUD, super::Hud::Brightness { level: now });
+                }
+            }
             publish(&app, &shared, |s| s.brightness = b);
         }
     }

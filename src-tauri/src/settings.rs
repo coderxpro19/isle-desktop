@@ -19,6 +19,21 @@ pub struct Settings {
     pub appearance: Appearance,
     pub weather: WeatherSettings,
     pub dock: DockSettings,
+    pub calendar: CalendarSettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CalendarSettings {
+    pub feeds: Vec<CalendarFeed>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarFeed {
+    pub url: String,
+    pub name: String,
+    pub color: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -42,6 +57,8 @@ pub struct IslandSettings {
     pub hide_in_fullscreen: bool,
     /// Isle focus mode: suppresses alerts (and notifications, from Phase 4).
     pub focus_mode: bool,
+    /// Volume keys show Isle's HUD instead of the Windows flyout.
+    pub volume_hud: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -123,6 +140,7 @@ impl Default for Settings {
             appearance: Default::default(),
             weather: Default::default(),
             dock: Default::default(),
+            calendar: Default::default(),
         }
     }
 }
@@ -139,6 +157,7 @@ impl Default for IslandSettings {
             charging_activity: true,
             hide_in_fullscreen: true,
             focus_mode: false,
+            volume_hud: true,
         }
     }
 }
@@ -243,6 +262,7 @@ pub fn settings_set(
 ) -> Result<(), String> {
     store.save(&settings)?;
     *store.inner.write() = settings.clone();
+    crate::hud::set_enabled(settings.island.volume_hud);
     let _ = app.emit(events::SETTINGS_CHANGED, settings);
     crate::dock::apply_settings(&app);
     Ok(())

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { CANVAS_H, CANVAS_W, Island } from "@/island/Island";
-import { useIsland, type Mode, type Tab } from "@/island/store";
+import { useIsland, type ClockView, type Mode, type Tab } from "@/island/store";
+import { startPomodoro, startTimer, toggleStopwatch } from "@/island/clock";
 import { Dock } from "@/dock/Dock";
 import { Launcher } from "@/dock/Launcher";
 import { useDock } from "@/dock/store";
@@ -43,6 +44,11 @@ export function DevStage() {
       if (dm === "autoHide" || dm === "smart" || dm === "fixed") useDock.setState((s) => ({ settings: { ...s.settings, dock: { ...s.settings.dock, mode: dm } } }));
       if (q.get("preview")) setTimeout(() => useDock.setState({ preview: { key: "chrome", x: window.innerWidth / 2 - 40 } }), 400);
       if (q.get("menu")) setTimeout(() => useDock.setState({ menu: { key: "code", x: window.innerWidth / 2 + 60 } }), 400);
+      if (q.get("cal")) addDemoCalendar();
+      if (q.get("timer")) startDemoTimer();
+      if (q.get("hud")) showHud();
+      const ck = q.get("clock") as ClockView | null;
+      if (ck) useIsland.setState({ clockView: ck });
       const cv = q.get("view");
       if (cv === "wifi" || cv === "bluetooth") useIsland.setState({ controlsView: cv });
       const md = q.get("mode") as Mode | null;
@@ -82,7 +88,7 @@ export function DevStage() {
           ))}
         </Group>
         <Group label="Tab">
-          {(["home", "controls", "weather", "stats"] as const).map((t) => (
+          {(["home", "controls", "clock", "weather", "stats"] as const).map((t) => (
             <Btn key={t} on={tab === t && mode === "expanded"} onClick={() => useIsland.setState({ mode: "expanded", hovered: true, tab: t })}>
               {t}
             </Btn>
@@ -101,6 +107,14 @@ export function DevStage() {
           <Btn onClick={() => window.__isleMock?.setBattery({ percent: 21, charging: false })}>21%</Btn>
           <Btn onClick={() => window.__isleMock?.setBattery({ percent: 19, charging: false })}>→19%</Btn>
           <Btn onClick={() => window.__isleMock?.setBattery({ percent: 76 })}>76%</Btn>
+        </Group>
+        <Group label="Live">
+          <Btn onClick={showHud}>volume</Btn>
+          <Btn onClick={() => useIsland.setState({ transient: { kind: "hud", hud: { kind: "brightness", level: 0.7 }, until: Date.now() + 1600 } })}>brightness</Btn>
+          <Btn onClick={startDemoTimer}>timer</Btn>
+          <Btn onClick={() => useIsland.setState((s) => ({ clock: { ...s.clock, stopwatch: toggleStopwatch(s.clock.stopwatch, Date.now()) } }))}>stopwatch</Btn>
+          <Btn onClick={() => useIsland.setState((s) => ({ clock: { ...s.clock, pomodoro: startPomodoro(Date.now()) } }))}>focus</Btn>
+          <Btn onClick={addDemoCalendar}>calendar</Btn>
         </Group>
         <Group label="Dock">
           {(["fixed", "autoHide", "smart"] as const).map((m) => (
@@ -144,4 +158,17 @@ function Btn({ on, onClick, children }: { on?: boolean; onClick(): void; childre
       {children}
     </button>
   );
+}
+
+function showHud() {
+  useIsland.setState({ transient: { kind: "hud", hud: { kind: "volume", level: 0.42, muted: false }, until: Date.now() + 60_000 } });
+}
+function startDemoTimer() {
+  useIsland.setState((s) => ({ clock: { ...s.clock, timer: startTimer(5 * 60_000 - 13_000, Date.now(), "5 min timer") } }));
+}
+function addDemoCalendar() {
+  useIsland.getState().updateSettings((s) => ({
+    ...s,
+    calendar: { feeds: [{ url: "https://calendar.example/demo.ics", name: "Work", color: "#5aa2ff" }] },
+  }));
 }

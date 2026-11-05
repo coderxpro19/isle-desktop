@@ -2,11 +2,12 @@ import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { TAB_BAR_H } from "../activities";
 import { useIsland, type Tab } from "../store";
-import { ChartIcon, HomeIcon, SlidersIcon, SunIcon } from "./icons";
+import { ChartIcon, HomeIcon, SlidersIcon, SunIcon, TimerIcon } from "./icons";
 
 const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: "home", label: "Home", icon: <HomeIcon size={15} /> },
   { id: "controls", label: "Controls", icon: <SlidersIcon size={15} /> },
+  { id: "clock", label: "Clock & Calendar", icon: <TimerIcon size={15} /> },
   { id: "weather", label: "Weather", icon: <SunIcon size={15} /> },
   { id: "stats", label: "System", icon: <ChartIcon size={15} /> },
 ];

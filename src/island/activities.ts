@@ -1,3 +1,4 @@
+import type { CalEvent } from "@/lib/ics";
 import type { IslandState, Mode, Tab, Transient } from "./store";
 import { PAUSED_LINGER_MS } from "./store";
 
@@ -6,7 +7,27 @@ import { PAUSED_LINGER_MS } from "./store";
  * bubbles beside it (like two activities on an iPhone). Later phases add
  * timers, downloads, calls, etc. by extending `ActivityKind` and `derive`.
  */
-export type ActivityKind = "music" | "charging" | "lowBattery" | "update";
+export type ActivityKind =
+  | "music"
+  | "charging"
+  | "lowBattery"
+  | "update"
+  | "hud"
+  | "timerDone"
+  | "timer"
+  | "pomodoro"
+  | "stopwatch"
+  | "event";
+
+/** Transient alerts: short, wide, and they take the pill. */
+export const TRANSIENT_KINDS: ActivityKind[] = ["charging", "lowBattery", "update", "hud", "timerDone"];
+/** Activities whose detail lives on the Clock tab. */
+export const CLOCK_KINDS: ActivityKind[] = ["timer", "pomodoro", "stopwatch", "event", "timerDone"];
+
+/** An event is "now" from 10 min before it starts until 5 min after. */
+export function upcomingEvent(events: CalEvent[], now: number): CalEvent | null {
+  return events.find((e) => !e.allDay && e.start - now <= 10 * 60_000 && now - e.start <= 5 * 60_000) ?? null;
+}
 
 export interface Activity {
   id: string;
@@ -14,10 +35,17 @@ export interface Activity {
   priority: number;
 }
 
-export function deriveActivities(s: Pick<IslandState, "media" | "pausedAt" | "transient">, now: number): Activity[] {
+export function deriveActivities(
+  s: Pick<IslandState, "media" | "pausedAt" | "transient"> & Partial<Pick<IslandState, "clock" | "events">>,
+  now: number,
+): Activity[] {
   const out: Activity[] = [];
   const t: Transient | null = s.transient && s.transient.until > now ? s.transient : null;
-  if (t) out.push({ id: t.kind, kind: t.kind, priority: 100 });
+  if (t) out.push({ id: t.kind, kind: t.kind, priority: t.kind === "hud" ? 110 : 100 });
+  if (s.clock?.timer) out.push({ id: "timer", kind: "timer", priority: 60 });
+  if (s.clock?.pomodoro) out.push({ id: "pomodoro", kind: "pomodoro", priority: 58 });
+  if (s.events && upcomingEvent(s.events, now)) out.push({ id: "event", kind: "event", priority: 55 });
+  if (s.clock?.stopwatch.startedAt != null) out.push({ id: "stopwatch", kind: "stopwatch", priority: 45 });
   if (s.media && (s.media.playing || (s.pausedAt !== null && now - s.pausedAt < PAUSED_LINGER_MS))) {
     out.push({ id: "music", kind: "music", priority: s.media.playing ? 50 : 40 });
   }
@@ -32,15 +60,17 @@ export interface Size {
 
 /** Target pill geometry for a given state. Hit-testing uses these targets too. */
 export function pillSize(mode: Mode, primary: ActivityKind | null, radius: number, tab: Tab = "home"): Size {
-  if (primary === "charging" || primary === "lowBattery" || primary === "update") {
+  if (primary && TRANSIENT_KINDS.includes(primary)) {
     // Transients are wide and short in compact, or take over the peek.
-    return mode === "expanded" ? expanded(primary, radius, tab) : { w: 320, h: 36, r: 18 };
+    if (mode === "expanded") return expanded(primary, radius, tab);
+    return primary === "hud" ? { w: 300, h: 36, r: 18 } : { w: 320, h: 36, r: 18 };
   }
+  const live = primary === "timer" || primary === "pomodoro" || primary === "stopwatch" || primary === "event";
   switch (mode) {
     case "compact":
-      return primary === "music" ? { w: 232, h: 34, r: 17 } : { w: 196, h: 34, r: 17 };
+      return primary === "music" || live ? { w: 232, h: 34, r: 17 } : { w: 196, h: 34, r: 17 };
     case "peek":
-      return primary === "music" ? { w: 372, h: 58, r: 29 } : { w: 300, h: 46, r: 23 };
+      return primary === "music" ? { w: 372, h: 58, r: 29 } : live ? { w: 340, h: 52, r: 26 } : { w: 300, h: 46, r: 23 };
     case "expanded":
       return expanded(primary, radius, tab);
   }
@@ -58,6 +88,8 @@ function expanded(primary: ActivityKind | null, radius: number, tab: Tab): Size 
       return { w: 440, h: TAB_BAR_H + 204, r };
     case "stats":
       return { w: 440, h: TAB_BAR_H + 236, r };
+    case "clock":
+      return { w: 460, h: TAB_BAR_H + 250, r };
     case "home":
       return primary === "music" ? { w: 440, h: TAB_BAR_H + 206, r } : { w: 420, h: TAB_BAR_H + 160, r };
   }

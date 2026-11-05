@@ -1,6 +1,6 @@
 [package]
 name = "isle"
-version = "0.6.0"
+version = "0.7.0"
 description = "Isle — a Dynamic Island and dock for Windows"
 authors = ["coderxpro19"]
 edition = "2021"
@@ -48,6 +48,7 @@ windows = { version = "0.62", features = [
   "Networking_Connectivity",
   "Security_Credentials",
   "Storage_Streams",
+  "Web_Http",
   "Win32_Devices_Display",
   "Win32_Devices_FunctionDiscovery",
   "Win32_Foundation",

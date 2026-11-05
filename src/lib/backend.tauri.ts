@@ -72,6 +72,7 @@ export function createTauriBackend(): Backend {
     power: (action) => invoke("power", { action }),
     quit: () => invoke("app_quit"),
     trayIcons: () => invoke("tray_icons"),
+    calendarFetch: (urls) => invoke("calendar_fetch", { urls }),
     trayClick: (id, button, x, y) => invoke("tray_click", { id, button, x, y }),
     reload: () => invoke("app_reload"),
     weather: fetchWeather,

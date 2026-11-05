@@ -377,6 +377,27 @@ export function createMockBackend(): Backend {
         tip: tip!,
         icon: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="14" fill="${color}"/><text x="16" y="21.5" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="white">${g}</text></svg>`)}`,
       })),
+    async calendarFetch(urls) {
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const at = (dayOffset: number, h: number, m = 0) => {
+        const d = new Date();
+        d.setDate(d.getDate() + dayOffset);
+        return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(h)}${pad(m)}00`;
+      };
+      const soon = new Date(Date.now() + 8 * 60_000);
+      const ev = (uid: string, s: string, e: string, title: string, extra = "") =>
+        `BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART:${s}\r\nDTEND:${e}\r\nSUMMARY:${title}\r\n${extra}END:VEVENT`;
+      const ics = [
+        "BEGIN:VCALENDAR",
+        ev("1", at(0, soon.getHours(), soon.getMinutes()), at(0, soon.getHours() + 1, soon.getMinutes()), "Design review", "LOCATION:Google Meet\r\n"),
+        ev("2", at(0, 17, 30), at(0, 18, 0), "Gym"),
+        ev("3", at(1, 10), at(1, 11), "Blanoir shoot planning"),
+        ev("4", at(3, 14), at(3, 15), "Call with Tunde"),
+        "BEGIN:VEVENT\r\nUID:5\r\nDTSTART;VALUE=DATE:" + at(5, 0).slice(0, 8) + "\r\nSUMMARY:Holiday\r\nEND:VEVENT",
+        "END:VCALENDAR",
+      ].join("\r\n");
+      return urls.map((url) => ({ url, ics, error: null }));
+    },
     async trayClick(id, button) {
       console.info(`[mock] tray ${button} on ${id}`);
     },
