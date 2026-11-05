@@ -337,6 +337,11 @@ fn shell_thread() -> &'static mpsc::Sender<ShellJob> {
                     while let Ok(next) = rx.try_recv() {
                         job = next;
                     }
+                    log::info!(
+                        "shell: taskbar hidden={} reserve={:?}",
+                        job.hide_taskbar,
+                        job.reserve
+                    );
                     if job.hide_taskbar {
                         taskbar::hide();
                     } else {
@@ -355,6 +360,7 @@ fn shell_thread() -> &'static mpsc::Sender<ShellJob> {
                         }
                         _ => {}
                     }
+                    log::info!("shell: done");
                 }
             })
             .expect("spawn shell thread");

@@ -59,6 +59,7 @@ pub fn island_set_hit_rects(
 /// Called by the UI once the first frame is painted, so the window never flashes.
 #[tauri::command]
 pub fn island_ready(window: tauri::Window) -> Result<(), String> {
+    log::info!("{} painted", window.label());
     if window.label().starts_with(LABEL_PREFIX) {
         crate::fullscreen::ISLAND_READY.store(true, std::sync::atomic::Ordering::Relaxed);
     }

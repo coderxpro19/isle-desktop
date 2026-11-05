@@ -36,6 +36,17 @@ use tauri::Manager;
 
 pub use shell::run_watchdog_if_requested;
 
+/// Lets the web UI write to Isle.log (errors, and its own startup milestones).
+#[tauri::command]
+fn ui_log(window: tauri::Window, level: String, message: String) {
+    let label = window.label().to_string();
+    match level.as_str() {
+        "error" => log::error!("[{label}] {message}"),
+        "warn" => log::warn!("[{label}] {message}"),
+        _ => log::info!("[{label}] {message}"),
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         // Must be registered first so a second launch focuses the running instance.
@@ -55,6 +66,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let handle = app.handle().clone();
+            log::info!("Isle {} starting", app.package_info().version);
             // A previous crash may have left the taskbar hidden.
             shell::restore_taskbar_if_needed();
 
@@ -69,19 +81,28 @@ pub fn run() {
             app.manage(stats::StatsService::spawn(handle.clone()));
             app.manage(connect::ConnectService::new(handle.clone()));
             app.manage(dock::DockService::new());
+            log::info!("setup: services started");
 
             power::spawn_monitor(handle.clone());
             island::create_windows(&handle)?;
+            log::info!("setup: island window created");
             island::spawn_hit_tester(handle.clone());
             fullscreen::spawn(handle.clone());
+            log::info!("setup: watchers started");
             // Tray first: whatever happens next, the user can quit or open the logs.
             tray::create(&handle)?;
+            log::info!("setup: tray created");
             shell::taskbar::start_guards();
+            log::info!("setup: taskbar guards started");
             // The dock is optional: if it fails, the island keeps working and
             // the taskbar is left alone.
             dock::ensure_default_pins(&handle);
+            log::info!("setup: dock pins ready");
             match dock::create_windows(&handle) {
-                Ok(()) => dock::apply_settings(&handle),
+                Ok(()) => {
+                    log::info!("setup: dock windows created");
+                    dock::apply_settings(&handle);
+                }
                 Err(e) => log::error!("dock unavailable: {e}"),
             }
             Ok(())
@@ -96,6 +117,7 @@ pub fn run() {
             audio::visualizer_set_active,
             settings::settings_get,
             settings::settings_set,
+            ui_log,
             controls::controls_state,
             controls::controls_set,
             controls::controls_set_active,
