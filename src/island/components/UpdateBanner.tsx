@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useIsland } from "../store";
 
 /** Height the banner adds to the Home tab when shown. */
@@ -23,6 +24,21 @@ export function UpdateBanner() {
       .finally(unpin);
   };
 
+  const recheck = () => {
+    if (!backend) return;
+    useIsland.setState({ update: { kind: "checking" } });
+    backend
+      .checkUpdate()
+      .then((info) => useIsland.setState({ update: info ? { kind: "available", info } : { kind: "upToDate" } }))
+      .catch((e: unknown) => useIsland.setState({ update: { kind: "error", message: e instanceof Error ? e.message : String(e) } }));
+  };
+
+  // Put the reason in Isle.log (main.tsx forwards window errors there).
+  const errMsg = u.kind === "error" ? u.message : null;
+  useEffect(() => {
+    if (errMsg) window.dispatchEvent(new ErrorEvent("error", { message: `updater: ${errMsg}` }));
+  }, [errMsg]);
+
   let text: string;
   let action: { label: string; run(): void } | null = null;
   let progress: number | null | undefined;
@@ -44,8 +60,8 @@ export function UpdateBanner() {
       progress = u.progress;
       break;
     case "error":
-      text = "Update failed";
-      action = u.info ? { label: "Retry", run: () => install(u.info!) } : null;
+      text = `Update failed: ${u.message.replace(/^Error:\s*/, "")}`;
+      action = u.info ? { label: "Retry", run: () => install(u.info!) } : { label: "Retry", run: recheck };
       break;
   }
 
