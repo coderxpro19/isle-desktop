@@ -1,5 +1,5 @@
 import type { Backend } from "./backend";
-import type { Artwork, BatteryState, BtDevice, ControlsState, WifiNetwork, EventMap, MediaState, Rect, Settings, StatsTick, Weather } from "./types";
+import type { Artwork, BatteryState, BtDevice, ControlsState, DockApp, LauncherApp, WifiNetwork, EventMap, MediaState, Rect, Settings, StatsTick, Weather } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 /** Fake tracks with generated cover art, for designing in a browser. */
@@ -77,6 +77,31 @@ export function createMockBackend(): Backend {
     { id: "bt3", name: "MX Master 3S", kind: "input", paired: true, connected: true, canConnect: false },
   ];
   let pairResolve: (() => void) | null = null;
+
+  // ── dock ──
+  const tile = (bg: string, fg: string, glyph: string) =>
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg}"/><stop offset="1" stop-color="${fg}"/></linearGradient></defs><rect x="6" y="6" width="84" height="84" rx="22" fill="url(#g)"/><text x="48" y="62" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="40" font-weight="700" fill="white">${glyph}</text></svg>`)}`;
+  const ICONS: Record<string, string> = {
+    explorer: tile("#ffd25c", "#f0a91b", "▤"),
+    chrome: tile("#4f8ef7", "#2c6ad8", "◉"),
+    settings: tile("#8a8f9c", "#5b606b", "⚙"),
+    code: tile("#3aa0f0", "#1673c9", "⟨⟩"),
+    spotify: tile("#2fdc6e", "#17a34a", "♫"),
+    cursor: tile("#3a3a3a", "#111111", "▲"),
+    figma: tile("#ff7262", "#a259ff", "F"),
+  };
+  let dockApps: DockApp[] = [
+    { key: "explorer", name: "File Explorer", pinned: true, running: true, active: false, windows: [{ hwnd: 11, title: "Downloads", minimized: false }] },
+    { key: "chrome", name: "Google Chrome", pinned: true, running: true, active: true, windows: [{ hwnd: 21, title: "Isle — GitHub", minimized: false }, { hwnd: 22, title: "Open-Meteo docs", minimized: false }] },
+    { key: "settings", name: "Settings", pinned: true, running: false, active: false, windows: [] },
+    { key: "code", name: "Visual Studio Code", pinned: false, running: true, active: false, windows: [{ hwnd: 31, title: "isle-desktop — Island.tsx", minimized: false }] },
+    { key: "spotify", name: "Spotify", pinned: false, running: true, active: false, windows: [{ hwnd: 41, title: "Spotify Premium", minimized: true }] },
+  ];
+  const emitDock = () => emit("dock://apps", dockApps);
+  const LAUNCHER: LauncherApp[] = [
+    "Calculator", "Camera", "Cursor", "Figma", "File Explorer", "Google Chrome", "Mail", "Microsoft Store", "Notepad",
+    "Paint", "Photos", "Settings", "Snipping Tool", "Spotify", "Terminal", "Visual Studio Code", "WhatsApp", "Xbox",
+  ].map((name) => ({ id: name.toLowerCase().replace(/\s+/g, "-"), name, pinKey: name.toLowerCase() }));
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   // Plausible, gently wandering stats while the stats tab is open.
@@ -175,6 +200,7 @@ export function createMockBackend(): Backend {
 
   return {
     kind: "mock",
+    label: new URLSearchParams(location.search).get("view") ?? "dev",
     batteryState: async () => battery,
     mediaState: async () => media,
     mediaArtwork: async () => artwork,
@@ -285,6 +311,56 @@ export function createMockBackend(): Backend {
     },
     async btPairRespond() {
       pairResolve?.();
+    },
+    dockApps: async () => dockApps,
+    async dockIcon(key) {
+      const k = key.replace(/^app:/, "").split("-")[0]!;
+      return ICONS[k] ?? ICONS[Object.keys(ICONS).find((i) => k.includes(i)) ?? ""] ?? tile("#6b7280", "#374151", k.slice(0, 1).toUpperCase());
+    },
+    async dockLaunch(key) {
+      await sleep(900);
+      dockApps = dockApps.map((a) =>
+        a.key === key ? { ...a, running: true, active: true, windows: [...a.windows, { hwnd: Math.round(Math.random() * 1e6), title: a.name, minimized: false }] } : { ...a, active: false },
+      );
+      emitDock();
+    },
+    async dockWindow(hwnd, action) {
+      dockApps = dockApps
+        .map((a) => {
+          const has = a.windows.some((w) => w.hwnd === hwnd);
+          if (action === "close") {
+            const windows = a.windows.filter((w) => w.hwnd !== hwnd);
+            return { ...a, windows, running: windows.length > 0, active: has ? false : a.active };
+          }
+          const windows = a.windows.map((w) => (w.hwnd === hwnd ? { ...w, minimized: action === "minimize" } : w));
+          return { ...a, windows, active: action === "activate" ? has : has ? false : a.active };
+        })
+        .filter((a) => a.pinned || a.running);
+      emitDock();
+    },
+    async dockPin(key, name, pinned) {
+      const existing = dockApps.find((a) => a.key === key);
+      if (existing) dockApps = dockApps.map((a) => (a.key === key ? { ...a, pinned } : a)).filter((a) => a.pinned || a.running);
+      else if (pinned) dockApps = [...dockApps, { key, name, pinned: true, running: false, active: false, windows: [] }];
+      dockApps = [...dockApps.filter((a) => a.pinned), ...dockApps.filter((a) => !a.pinned)];
+      emitDock();
+    },
+    async dockPreviews() {},
+    dockPlaces: async () => ({ recycleBinItems: 12 }),
+    async dockOpenPlace(place) {
+      console.info(`[mock] open ${place}`);
+    },
+    async dockEmptyRecycleBin() {},
+    launcherApps: async () => LAUNCHER,
+    async launcherLaunch(id) {
+      console.info(`[mock] launch ${id}`);
+    },
+    async launcherToggle(show) {
+      emit("launcher://opened", null);
+      window.dispatchEvent(new CustomEvent("isle-mock-launcher", { detail: show ?? "toggle" }));
+    },
+    async power(action) {
+      console.info(`[mock] power ${action}`);
     },
     async checkUpdate() {
       await sleep(400);

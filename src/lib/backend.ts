@@ -1,6 +1,7 @@
 import type {
   Artwork, BatteryState, ControlAction, ControlsState, EventMap, MediaAction, MediaState, Rect, Settings, SettingsPage,
   Weather, WeatherLocation, WifiNetwork, WifiConnectResult, BtDevice, BtAction, UpdateInfo,
+  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction,
 } from "./types";
 
 /**
@@ -10,6 +11,8 @@ import type {
  */
 export interface Backend {
   readonly kind: "tauri" | "mock";
+  /** Which window this UI is running in: "island-0", "dock-0", "launcher". */
+  readonly label: string;
   batteryState(): Promise<BatteryState>;
   mediaState(): Promise<MediaState | null>;
   mediaArtwork(): Promise<Artwork | null>;
@@ -42,6 +45,19 @@ export interface Backend {
   checkUpdate(): Promise<UpdateInfo | null>;
   /** Download + install the update found by `checkUpdate`, then restart Isle. */
   installUpdate(onProgress: (fraction: number | null) => void): Promise<void>;
+  dockApps(): Promise<DockApp[]>;
+  dockIcon(key: string): Promise<string | null>;
+  dockLaunch(key: string): Promise<void>;
+  dockWindow(hwnd: number, action: WindowAction): Promise<void>;
+  dockPin(key: string, name: string, pinned: boolean): Promise<void>;
+  dockPreviews(slots: PreviewSlot[]): Promise<void>;
+  dockPlaces(): Promise<{ recycleBinItems: number }>;
+  dockOpenPlace(place: Place): Promise<void>;
+  dockEmptyRecycleBin(): Promise<void>;
+  launcherApps(): Promise<LauncherApp[]>;
+  launcherLaunch(id: string): Promise<void>;
+  launcherToggle(show?: boolean): Promise<void>;
+  power(action: PowerAction): Promise<void>;
   on<K extends keyof EventMap>(event: K, cb: (payload: EventMap[K]) => void): () => void;
 }
 

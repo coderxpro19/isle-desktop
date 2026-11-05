@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "island",
-  "description": "Permissions for island windows",
-  "windows": ["island-*"],
+  "description": "Permissions for Isle windows",
+  "windows": ["island-*", "dock-*", "launcher"],
   "permissions": [
     "core:default",
     "core:event:default",

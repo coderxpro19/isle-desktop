@@ -2,8 +2,8 @@
 
 A Dynamic Island and dock for Windows 10/11. Built with Tauri 2 (Rust) and React.
 
-> **Status:** Phase 2 — island core + command centre, weather and system stats.
-> The dock and everything else are on the [roadmap](docs/ROADMAP.md).
+> **Status:** Phase 3 — island + a dock that replaces the Windows taskbar.
+> Next up is on the [roadmap](docs/ROADMAP.md).
 
 ## What works today
 
@@ -18,7 +18,11 @@ A Dynamic Island and dock for Windows 10/11. Built with Tauri 2 (Rust) and React
   Weather · System (CPU, RAM, GPU, network, disks).
 - Hides itself over full-screen apps, games and videos.
 - Click-through everywhere outside the island, so it never blocks your apps.
-- Tray icon with *Reload island* and *Quit*.
+- **Dock** replacing the taskbar: pinned/running apps, live window previews, right-click menus,
+  magnification, Downloads and Recycle Bin, three visibility modes, and Isle's own Start menu.
+  The Windows taskbar always comes back when Isle quits or crashes.
+- **In-app updates** from GitHub Releases.
+- Tray icon: version, check for updates, Dock options, reload, quit.
 
 ## Run it (Windows)
 

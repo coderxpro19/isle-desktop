@@ -43,3 +43,15 @@ button:focus-visible {
   scrollbar-width: thin;
   scrollbar-color: rgb(255 255 255 / 0.18) transparent;
 }
+
+/* Dock: app launching */
+.isle-bounce {
+  animation: isle-bounce 0.7s cubic-bezier(.3,.8,.4,1) infinite;
+}
+@keyframes isle-bounce {
+  0%, 100% { transform: translateY(0); }
+  45% { transform: translateY(-38%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .isle-bounce { animation: none; opacity: 0.6; }
+}

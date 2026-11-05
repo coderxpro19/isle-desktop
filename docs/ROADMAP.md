@@ -35,15 +35,20 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - ✅ Island hides over full-screen apps, games, videos and presentations
 - ↪ System tray icons moved to Phase 3 (they live naturally in the dock)
 
-## Phase 3 — Dock + taskbar replacement ⬜
-- System tray icons (in the dock, and accessible from the island)
-- AppBar registration so maximised windows respect the dock
-- Hide `Shell_TrayWnd` (+ secondary taskbars) with a watchdog process and panic hook that
-  **always** restore the taskbar on quit, crash, or kill
-- Pinned apps, running indicators, multi-window grouping (WinEventHook)
-- Live DWM thumbnail previews on hover, right-click menus + jump lists
-- Fixed / auto-hide / smart-hide, magnification, drives, folders, Recycle Bin
-- Custom Start menu (search, pinned, recent)
+## Phase 3 — Dock + taskbar replacement ✅
+- ✅ Dock at the bottom of the primary monitor: Start, pinned apps, running apps, Downloads, Recycle Bin
+- ✅ Running indicators (active app highlighted), grouping by app identity (AUMID or exe)
+- ✅ Live window previews on hover (DWM thumbnails), close windows from the preview
+- ✅ Right-click menus: window list, new window, pin/unpin, close all; Recycle Bin empty
+- ✅ Click to launch (bounce), focus, minimise, or cycle windows
+- ✅ Magnification
+- ✅ Modes: always visible (reserves screen space), auto-hide (bottom-edge reveal), hide when windows overlap
+- ✅ Isle Start menu: search all apps, keyboard navigation, pin from Start, power menu
+- ✅ Taskbar hidden while the dock is on and **always restored**: normal quit, panic hook,
+  watchdog process (crash / kill), and a marker file checked at next start; re-hidden if Explorer restarts
+- ✅ Tray → Dock menu: show/hide dock, hide taskbar on/off, mode
+- ⬜ System tray icons in the dock (needs a tray host — next)
+- ⬜ Drag to reorder pins, jump lists, notification badges
 
 ## Phase 4 — Shelf, calendar, notifications, HUDs ⬜
 - File/text shelf: drop onto the island, drag back out (OLE drag-drop)

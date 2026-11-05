@@ -23,6 +23,8 @@ use crate::{events, settings::SettingsStore};
 pub const CANVAS_W: f64 = 680.0;
 pub const CANVAS_H: f64 = 440.0;
 const LABEL_PREFIX: &str = "island-";
+/// Windows whose click-through is driven by reported hit rects.
+const HIT_TESTED: [&str; 2] = ["island-", "dock-"];
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
 pub struct Rect {
@@ -57,7 +59,21 @@ pub fn island_set_hit_rects(
 /// Called by the UI once the first frame is painted, so the window never flashes.
 #[tauri::command]
 pub fn island_ready(window: tauri::Window) -> Result<(), String> {
-    crate::fullscreen::ISLAND_READY.store(true, std::sync::atomic::Ordering::Relaxed);
+    if window.label().starts_with(LABEL_PREFIX) {
+        crate::fullscreen::ISLAND_READY.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    if window.label().starts_with("dock-") {
+        use tauri::Manager;
+        if !window
+            .app_handle()
+            .state::<SettingsStore>()
+            .get()
+            .dock
+            .enabled
+        {
+            return Ok(());
+        }
+    }
     window.show().map_err(|e| e.to_string())?;
     // Start fully click-through; the hit tester takes over from here.
     window
@@ -141,19 +157,20 @@ pub fn spawn_hit_tester(app: AppHandle) {
                 let mut near_any = false;
                 if let Ok(cursor) = app.cursor_position() {
                     for (label, win) in app.webview_windows() {
-                        if !label.starts_with(LABEL_PREFIX) {
+                        if !HIT_TESTED.iter().any(|p| label.starts_with(p))
+                            || !win.is_visible().unwrap_or(false)
+                        {
                             continue;
                         }
-                        let (Ok(pos), Ok(scale)) = (win.outer_position(), win.scale_factor())
+                        let (Ok(pos), Ok(size), Ok(scale)) =
+                            (win.outer_position(), win.inner_size(), win.scale_factor())
                         else {
                             continue;
                         };
                         let lx = (cursor.x - pos.x as f64) / scale;
                         let ly = (cursor.y - pos.y as f64) / scale;
-                        near_any |= lx > -160.0
-                            && lx < CANVAS_W + 160.0
-                            && ly > -160.0
-                            && ly < CANVAS_H + 160.0;
+                        let (w, h) = (size.width as f64 / scale, size.height as f64 / scale);
+                        near_any |= lx > -160.0 && lx < w + 160.0 && ly > -160.0 && ly < h + 160.0;
 
                         let inside = app
                             .state::<HitRegions>()

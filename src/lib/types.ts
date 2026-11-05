@@ -63,6 +63,23 @@ export interface Settings {
     reduceMotion: boolean;
   };
   weather: WeatherSettings;
+  dock: DockSettings;
+}
+
+export type DockMode = "fixed" | "autoHide" | "smart";
+
+export interface PinnedApp {
+  key: string;
+  name: string;
+}
+
+export interface DockSettings {
+  enabled: boolean;
+  replaceTaskbar: boolean;
+  mode: DockMode;
+  magnification: boolean;
+  iconSize: number;
+  pinned: PinnedApp[] | null;
 }
 
 export interface WeatherLocation {
@@ -91,7 +108,41 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false },
   weather: { location: null, fahrenheit: false },
+  dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 48, pinned: null },
 };
+
+export interface DockWindow {
+  hwnd: number;
+  title: string;
+  minimized: boolean;
+}
+
+export interface DockApp {
+  key: string;
+  name: string;
+  pinned: boolean;
+  running: boolean;
+  active: boolean;
+  windows: DockWindow[];
+}
+
+export interface LauncherApp {
+  id: string;
+  name: string;
+  pinKey: string | null;
+}
+
+export type WindowAction = "activate" | "minimize" | "close";
+export type PowerAction = "lock" | "sleep" | "signOut" | "restart" | "shutdown";
+export type Place = "downloads" | "documents" | "recycle" | "this-pc";
+
+export interface PreviewSlot {
+  hwnd: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 export interface ControlsState {
   volume: { level: number; muted: boolean; device: string } | null;
@@ -187,4 +238,7 @@ export interface EventMap {
   "bt://changed": null;
   "bt://pairing": PairingPrompt | null;
   "updater://check": null;
+  "dock://apps": DockApp[];
+  "dock://overlap": boolean;
+  "launcher://opened": null;
 }

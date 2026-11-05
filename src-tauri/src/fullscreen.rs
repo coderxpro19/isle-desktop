@@ -32,6 +32,8 @@ pub fn spawn(app: AppHandle) {
         .name("isle-fullscreen".into())
         .spawn(move || {
             let mut hidden = false;
+            // Only re-show what we hid (a disabled dock must stay hidden).
+            let mut hid: Vec<String> = Vec::new();
             loop {
                 std::thread::sleep(Duration::from_millis(800));
                 if !ISLAND_READY.load(Ordering::Relaxed) {
@@ -43,9 +45,20 @@ pub fn spawn(app: AppHandle) {
                     continue;
                 }
                 hidden = full;
-                for (label, win) in app.webview_windows() {
-                    if label.starts_with("island-") {
-                        let _ = if full { win.hide() } else { win.show() };
+                if full {
+                    for (label, win) in app.webview_windows() {
+                        if (label.starts_with("island-") || label.starts_with("dock-"))
+                            && win.is_visible().unwrap_or(false)
+                        {
+                            let _ = win.hide();
+                            hid.push(label);
+                        }
+                    }
+                } else {
+                    for label in hid.drain(..) {
+                        if let Some(win) = app.get_webview_window(&label) {
+                            let _ = win.show();
+                        }
                     }
                 }
             }

@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { CANVAS_H, CANVAS_W, Island } from "@/island/Island";
 import { useIsland, type Mode, type Tab } from "@/island/store";
+import { Dock } from "@/dock/Dock";
+import { Launcher } from "@/dock/Launcher";
+import { useDock } from "@/dock/store";
 
 /**
  * Browser-only harness (`npm run dev`, open http://localhost:1420): renders the
@@ -13,6 +16,13 @@ export function DevStage() {
   const battery = useIsland((s) => s.battery);
   const tab = useIsland((s) => s.tab);
   const [wallpaper, setWallpaper] = useState(0);
+  const [launcher, setLauncher] = useState(false);
+  const dockMode = useDock((s) => s.settings.dock.mode);
+  useEffect(() => {
+    const on = (e: Event) => setLauncher((v) => ((e as CustomEvent).detail === "toggle" ? !v : !!(e as CustomEvent).detail));
+    window.addEventListener("isle-mock-launcher", on);
+    return () => window.removeEventListener("isle-mock-launcher", on);
+  }, []);
 
   // Allow `?mode=expanded&media=paused&charging=1` for scripted screenshots.
   useEffect(() => {
@@ -28,6 +38,11 @@ export function DevStage() {
       if (q.get("focus")) useIsland.getState().updateSettings((s) => ({ ...s, island: { ...s.island, focusMode: true } }));
       const tb = q.get("tab") as Tab | null;
       if (tb) useIsland.setState({ tab: tb });
+      if (q.get("launcher")) setLauncher(true);
+      const dm = q.get("dock");
+      if (dm === "autoHide" || dm === "smart" || dm === "fixed") useDock.setState((s) => ({ settings: { ...s.settings, dock: { ...s.settings.dock, mode: dm } } }));
+      if (q.get("preview")) setTimeout(() => useDock.setState({ preview: { key: "chrome", x: window.innerWidth / 2 - 40 } }), 400);
+      if (q.get("menu")) setTimeout(() => useDock.setState({ menu: { key: "code", x: window.innerWidth / 2 + 60 } }), 400);
       const cv = q.get("view");
       if (cv === "wifi" || cv === "bluetooth") useIsland.setState({ controlsView: cv });
       const md = q.get("mode") as Mode | null;
@@ -48,7 +63,16 @@ export function DevStage() {
         <Island />
       </div>
 
-      <div className="absolute right-4 bottom-4 w-[300px] rounded-2xl border border-white/10 bg-black/55 p-4 text-[12px] text-white/80 backdrop-blur-xl">
+      <div className="absolute inset-x-0 bottom-0" style={{ height: 340 }}>
+        <Dock />
+      </div>
+      {launcher && (
+        <div className="absolute left-1/2 -translate-x-1/2" style={{ width: 640, height: 560, bottom: 96 }}>
+          <Launcher onClose={() => setLauncher(false)} />
+        </div>
+      )}
+
+      <div className="absolute top-4 right-4 w-[300px] rounded-2xl border border-white/10 bg-black/55 p-4 text-[12px] text-white/80 backdrop-blur-xl">
         <div className="mb-3 text-[13px] font-semibold text-white">Isle dev stage</div>
         <Group label="Mode">
           {(["compact", "peek", "expanded"] as const).map((m) => (
@@ -77,6 +101,14 @@ export function DevStage() {
           <Btn onClick={() => window.__isleMock?.setBattery({ percent: 21, charging: false })}>21%</Btn>
           <Btn onClick={() => window.__isleMock?.setBattery({ percent: 19, charging: false })}>→19%</Btn>
           <Btn onClick={() => window.__isleMock?.setBattery({ percent: 76 })}>76%</Btn>
+        </Group>
+        <Group label="Dock">
+          {(["fixed", "autoHide", "smart"] as const).map((m) => (
+            <Btn key={m} on={dockMode === m} onClick={() => useDock.setState((s) => ({ settings: { ...s.settings, dock: { ...s.settings.dock, mode: m } } }))}>
+              {m}
+            </Btn>
+          ))}
+          <Btn on={launcher} onClick={() => setLauncher(!launcher)}>start</Btn>
         </Group>
         <Group label="Wallpaper">
           {walls.map((_, i) => (

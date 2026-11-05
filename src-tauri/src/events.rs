@@ -14,3 +14,6 @@ pub const BT_CHANGED: &str = "bt://changed";
 pub const BT_PAIRING: &str = "bt://pairing";
 /// Tray → UI: user asked to check for updates now.
 pub const UPDATER_CHECK: &str = "updater://check";
+pub const DOCK_APPS: &str = "dock://apps";
+pub const DOCK_OVERLAP: &str = "dock://overlap";
+pub const LAUNCHER_OPENED: &str = "launcher://opened";

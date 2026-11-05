@@ -8,13 +8,14 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
 /** Events addressed to one island window rather than broadcast. */
-const WINDOW_SCOPED = new Set<keyof EventMap>(["island://hover"]);
+const WINDOW_SCOPED = new Set<keyof EventMap>(["island://hover", "launcher://opened"]);
 
 export function createTauriBackend(): Backend {
   const win = getCurrentWebviewWindow();
   let pending: Update | null = null;
   return {
     kind: "tauri",
+    label: win.label,
     batteryState: () => invoke("battery_state"),
     mediaState: () => invoke("media_state"),
     mediaArtwork: () => invoke("media_artwork"),
@@ -56,6 +57,19 @@ export function createTauriBackend(): Backend {
       // On Windows the installer closes Isle itself; relaunch covers other cases.
       await relaunch();
     },
+    dockApps: () => invoke("dock_apps"),
+    dockIcon: (key) => invoke("dock_icon", { key }),
+    dockLaunch: (key) => invoke("dock_launch", { key }),
+    dockWindow: (hwnd, action) => invoke("dock_window", { hwnd, action }),
+    dockPin: (key, name, pinned) => invoke("dock_pin", { key, name, pinned }),
+    dockPreviews: (slots) => invoke("dock_previews", { slots }),
+    dockPlaces: () => invoke("dock_places"),
+    dockOpenPlace: (place) => invoke("dock_open_place", { place }),
+    dockEmptyRecycleBin: () => invoke("dock_empty_recycle_bin"),
+    launcherApps: () => invoke("launcher_apps"),
+    launcherLaunch: (id) => invoke("launcher_launch", { id }),
+    launcherToggle: (show) => invoke("launcher_toggle", { show: show ?? null }),
+    power: (action) => invoke("power", { action }),
     weather: fetchWeather,
     geocode,
     on(event, cb) {

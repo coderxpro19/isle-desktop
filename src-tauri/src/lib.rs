@@ -11,24 +11,30 @@
 //! - `stats`    CPU / RAM / GPU / network / disk sampling
 //! - `fullscreen` hide islands over full-screen apps
 //! - `system`   open Settings pages, device location
+//! - `dock`     dock + Start menu (taskbar replacement)
+//! - `shell`    taskbar hide/restore (crash-safe), AppBar space reservation
 //! - `tray`     tray icon + menu
 //! - `events`   names of every event emitted to the UI
 
 mod audio;
 mod connect;
 mod controls;
+mod dock;
 mod events;
 mod fullscreen;
 mod island;
 mod media;
 mod power;
 mod settings;
+mod shell;
 mod stats;
 mod system;
 mod tray;
 mod util;
 
 use tauri::Manager;
+
+pub use shell::run_watchdog_if_requested;
 
 pub fn run() {
     tauri::Builder::default()
@@ -49,6 +55,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let handle = app.handle().clone();
+            // A previous crash may have left the taskbar hidden.
+            shell::restore_taskbar_if_needed();
 
             let store = settings::SettingsStore::load(&handle);
             app.manage(store);
@@ -60,11 +68,16 @@ pub fn run() {
             app.manage(controls::ControlsService::spawn(handle.clone()));
             app.manage(stats::StatsService::spawn(handle.clone()));
             app.manage(connect::ConnectService::new(handle.clone()));
+            app.manage(dock::DockService::new());
 
             power::spawn_monitor(handle.clone());
             island::create_windows(&handle)?;
             island::spawn_hit_tester(handle.clone());
             fullscreen::spawn(handle.clone());
+            shell::taskbar::start_guards();
+            dock::ensure_default_pins(&handle);
+            dock::create_windows(&handle)?;
+            dock::apply_settings(&handle);
             tray::create(&handle)?;
             Ok(())
         })
@@ -91,7 +104,27 @@ pub fn run() {
             connect::bt_set_discovery,
             connect::bt_action,
             connect::bt_pair_respond,
+            dock::dock_apps,
+            dock::dock_icon,
+            dock::dock_launch,
+            dock::dock_window,
+            dock::dock_pin,
+            dock::dock_reorder,
+            dock::dock_previews,
+            dock::dock_places,
+            dock::dock_open_place,
+            dock::dock_empty_recycle_bin,
+            dock::launcher_apps,
+            dock::launcher_launch,
+            dock::launcher_toggle,
+            dock::power,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Isle");
+        .build(tauri::generate_context!())
+        .expect("error while building Isle")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                // Always give the user their taskbar back.
+                dock::teardown(app);
+            }
+        });
 }

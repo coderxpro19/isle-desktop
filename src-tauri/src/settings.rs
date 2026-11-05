@@ -18,6 +18,7 @@ pub struct Settings {
     pub island: IslandSettings,
     pub appearance: Appearance,
     pub weather: WeatherSettings,
+    pub dock: DockSettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -41,6 +42,53 @@ pub struct IslandSettings {
     pub hide_in_fullscreen: bool,
     /// Isle focus mode: suppresses alerts (and notifications, from Phase 4).
     pub focus_mode: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum DockMode {
+    /// Always visible; maximised windows stop above it.
+    #[default]
+    Fixed,
+    /// Hidden until the cursor touches the bottom edge.
+    AutoHide,
+    /// Visible, but slides away when a window would overlap it.
+    Smart,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DockSettings {
+    pub enabled: bool,
+    /// Hide the Windows taskbar while the dock is on.
+    pub replace_taskbar: bool,
+    pub mode: DockMode,
+    pub magnification: bool,
+    /// Icon size in logical px.
+    pub icon_size: u32,
+    /// `None` until first run, when sensible defaults are filled in.
+    pub pinned: Option<Vec<PinnedApp>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PinnedApp {
+    /// Identity used to match running windows: an AppUserModelID or a lower-cased exe path.
+    pub key: String,
+    pub name: String,
+}
+
+impl Default for DockSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            replace_taskbar: true,
+            mode: DockMode::Fixed,
+            magnification: true,
+            icon_size: 48,
+            pinned: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -74,6 +122,7 @@ impl Default for Settings {
             island: Default::default(),
             appearance: Default::default(),
             weather: Default::default(),
+            dock: Default::default(),
         }
     }
 }
@@ -152,6 +201,20 @@ impl SettingsStore {
     }
 }
 
+impl SettingsStore {
+    /// Change settings from Rust (tray menu etc.), persist, broadcast, and apply.
+    pub fn update(&self, app: &AppHandle, f: impl FnOnce(&mut Settings)) {
+        let mut next = self.get();
+        f(&mut next);
+        if let Err(e) = self.save(&next) {
+            log::warn!("saving settings failed: {e}");
+        }
+        *self.inner.write() = next.clone();
+        let _ = app.emit(events::SETTINGS_CHANGED, &next);
+        crate::dock::apply_settings(app);
+    }
+}
+
 #[tauri::command]
 pub fn settings_get(store: State<'_, SettingsStore>) -> Settings {
     store.get()
@@ -166,6 +229,7 @@ pub fn settings_set(
     store.save(&settings)?;
     *store.inner.write() = settings.clone();
     let _ = app.emit(events::SETTINGS_CHANGED, settings);
+    crate::dock::apply_settings(&app);
     Ok(())
 }
 
