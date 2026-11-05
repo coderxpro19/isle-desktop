@@ -233,10 +233,20 @@ pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
         .focused(false)
         .visible(false)
         .build()?;
-    let _ = dock.set_position(PhysicalPosition::new(
-        mon.position().x,
-        mon.position().y + (mh * scale - DOCK_CANVAS_H * scale).round() as i32,
-    ));
+    place_dock(app);
+    // Windows rescales a window when it crosses monitors with different DPI
+    // (e.g. laptop + TV); re-pin it to the bottom of the primary monitor.
+    let app2 = app.clone();
+    dock.on_window_event(move |e| {
+        if matches!(
+            e,
+            WindowEvent::ScaleFactorChanged { .. }
+                | WindowEvent::Moved(_)
+                | WindowEvent::Resized(_)
+        ) {
+            place_dock(&app2);
+        }
+    });
 
     let launcher = WebviewWindowBuilder::new(app, LAUNCHER_LABEL, WebviewUrl::default())
         .title("Isle Start")
@@ -263,6 +273,28 @@ pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
     #[cfg(windows)]
     win::spawn_watcher(app.clone());
     Ok(())
+}
+
+/// Size the dock to the primary monitor's full width and pin it to the bottom
+/// edge, in physical pixels (immune to DPI rescaling). No-op if already there.
+pub fn place_dock(app: &AppHandle) {
+    let (Some(win), Ok(Some(mon))) = (app.get_webview_window(DOCK_LABEL), app.primary_monitor())
+    else {
+        return;
+    };
+    let scale = mon.scale_factor();
+    let (p, z) = (mon.position(), mon.size());
+    let h = (DOCK_CANVAS_H * scale).round() as u32;
+    let want_pos = PhysicalPosition::new(p.x, p.y + z.height as i32 - h as i32);
+    let want_size = tauri::PhysicalSize::new(z.width, h);
+    // Move first so the size is applied at the primary monitor's DPI.
+    if win.outer_position().ok() != Some(want_pos) {
+        let _ = win.set_position(want_pos);
+    }
+    if win.inner_size().ok() != Some(want_size) {
+        let _ = win.set_size(want_size);
+        let _ = win.set_position(want_pos);
+    }
 }
 
 /// Fill in default pins on first run.
@@ -371,6 +403,17 @@ fn shell_thread() -> &'static mpsc::Sender<ShellJob> {
 /// Called when the dock UI has painted its first frame.
 pub fn mark_dock_ready(app: &AppHandle) {
     DOCK_READY.store(true, Ordering::SeqCst);
+    place_dock(app);
+    if let (Some(w), Ok(Some(m))) = (app.get_webview_window(DOCK_LABEL), app.primary_monitor()) {
+        log::info!(
+            "dock at {:?} size {:?} on monitor {:?} {:?} scale {}",
+            w.outer_position().ok(),
+            w.inner_size().ok(),
+            m.position(),
+            m.size(),
+            m.scale_factor()
+        );
+    }
     apply_settings(app);
 }
 
@@ -616,6 +659,22 @@ pub fn launcher_toggle(app: AppHandle, show: Option<bool>) {
     };
     let visible = w.is_visible().unwrap_or(false);
     if show.unwrap_or(!visible) {
+        // Centre above the dock on the primary monitor (physical px; DPI-safe).
+        if let Ok(Some(mon)) = app.primary_monitor() {
+            let k = mon.scale_factor();
+            let (p, z) = (mon.position(), mon.size());
+            let (lw, lh) = (
+                (LAUNCHER_W * k).round() as i32,
+                (LAUNCHER_H * k).round() as i32,
+            );
+            let pos = PhysicalPosition::new(
+                p.x + (z.width as i32 - lw) / 2,
+                p.y + z.height as i32 - lh - (96.0 * k) as i32,
+            );
+            let _ = w.set_position(pos);
+            let _ = w.set_size(tauri::PhysicalSize::new(lw as u32, lh as u32));
+            let _ = w.set_position(pos);
+        }
         let _ = w.show();
         let _ = w.set_focus();
         let _ = app.emit_to(LAUNCHER_LABEL, crate::events::LAUNCHER_OPENED, ());
