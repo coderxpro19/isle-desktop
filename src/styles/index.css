@@ -10,6 +10,8 @@
 html,
 body,
 #root {
+  /* Full-window views (dock, Start menu) size themselves from these. */
+  height: 100%;
   margin: 0;
   background: transparent;
   overflow: hidden;

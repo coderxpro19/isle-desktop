@@ -24,12 +24,23 @@ async function boot() {
     }
     root.render(<StrictMode>{view}</StrictMode>);
   } else {
-    const { DevStage } = await import("@/dev/DevStage");
-    root.render(
-      <StrictMode>
-        <DevStage />
-      </StrictMode>,
-    );
+    // `?view=dock` / `?view=launcher` render a window's UI exactly as the
+    // native window does (full-window, no dev container) for layout checks.
+    const view = new URLSearchParams(location.search).get("view");
+    if (view === "dock") {
+      const { Dock } = await import("@/dock/Dock");
+      root.render(<StrictMode><Dock /></StrictMode>);
+    } else if (view === "launcher") {
+      const { Launcher } = await import("@/dock/Launcher");
+      root.render(<StrictMode><Launcher /></StrictMode>);
+    } else {
+      const { DevStage } = await import("@/dev/DevStage");
+      root.render(
+        <StrictMode>
+          <DevStage />
+        </StrictMode>,
+      );
+    }
   }
 }
 
