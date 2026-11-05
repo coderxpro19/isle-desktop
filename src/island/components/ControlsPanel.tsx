@@ -4,12 +4,18 @@ import { useIsland } from "../store";
 import { BluetoothIcon, ChevronIcon, EthernetIcon, MoonIcon, SpeakerIcon, SunIcon, WifiIcon } from "./icons";
 import { Marquee } from "./Marquee";
 import { Slider } from "./Slider";
+import { BluetoothList } from "./BluetoothList";
+import { WifiList } from "./WifiList";
 
 export function ControlsPanel() {
   const c = useIsland((s) => s.controls);
   const backend = useIsland((s) => s.backend);
   const focus = useIsland((s) => s.settings.island.focusMode);
   const updateSettings = useIsland((s) => s.updateSettings);
+  const view = useIsland((s) => s.controlsView);
+  const show = (v: "wifi" | "bluetooth") => useIsland.setState({ controlsView: v });
+  if (view === "wifi") return <WifiList />;
+  if (view === "bluetooth") return <BluetoothList />;
   if (!c) return <div className="grid h-full place-items-center text-[12px] text-white/40">Loading…</div>;
 
   const set = (a: Parameters<NonNullable<typeof backend>["controlsSet"]>[0]) => void backend?.controlsSet(a);
@@ -18,7 +24,7 @@ export function ControlsPanel() {
   return (
     <div className="flex h-full flex-col gap-3 px-4 pt-1 pb-4">
       <div className="grid grid-cols-3 gap-2">
-        <WifiTile c={c} onToggle={() => c.wifi && set({ type: "setWifi", on: !c.wifi.on })} onMore={() => open("wifi")} />
+        <WifiTile c={c} onToggle={() => c.wifi && set({ type: "setWifi", on: !c.wifi.on })} onOpen={() => show("wifi")} />
         <Tile
           label="Bluetooth"
           sub={c.bluetooth ? (c.bluetooth.on ? "On" : "Off") : "Unavailable"}
@@ -26,7 +32,7 @@ export function ControlsPanel() {
           disabled={!c.bluetooth}
           icon={<BluetoothIcon size={17} />}
           onToggle={() => c.bluetooth && set({ type: "setBluetooth", on: !c.bluetooth.on })}
-          onMore={() => open("bluetooth")}
+          onOpen={() => show("bluetooth")}
         />
         <Tile
           label="Focus"
@@ -35,6 +41,7 @@ export function ControlsPanel() {
           activeColor="bg-[#7d6bff]"
           icon={<MoonIcon size={15} />}
           onToggle={() => updateSettings((s) => ({ ...s, island: { ...s.island, focusMode: !s.island.focusMode } }))}
+          onOpen={() => updateSettings((s) => ({ ...s, island: { ...s.island, focusMode: !s.island.focusMode } }))}
           onMore={() => open("focus")}
         />
       </div>
@@ -67,10 +74,10 @@ export function ControlsPanel() {
   );
 }
 
-function WifiTile({ c, onToggle, onMore }: { c: ControlsState; onToggle(): void; onMore(): void }) {
+function WifiTile({ c, onToggle, onOpen }: { c: ControlsState; onToggle(): void; onOpen(): void }) {
   const n = c.network;
-  if (n.kind === "ethernet") {
-    return <Tile label="Ethernet" sub={n.online ? (n.name ?? "Connected") : "No internet"} on icon={<EthernetIcon size={16} />} onToggle={onMore} onMore={onMore} />;
+  if (n.kind === "ethernet" && !c.wifi?.on) {
+    return <Tile label="Ethernet" sub={n.online ? (n.name ?? "Connected") : "No internet"} on icon={<EthernetIcon size={16} />} onToggle={onOpen} onOpen={onOpen} />;
   }
   const on = !!c.wifi?.on;
   const sub = !c.wifi ? "Unavailable" : !on ? "Off" : n.kind === "wifi" ? (n.name ?? "Connected") : "Not connected";
@@ -82,7 +89,7 @@ function WifiTile({ c, onToggle, onMore }: { c: ControlsState; onToggle(): void;
       disabled={!c.wifi}
       icon={<WifiIcon size={17} bars={n.kind === "wifi" ? (n.signal ?? 5) : 0} off={!on} />}
       onToggle={onToggle}
-      onMore={onMore}
+      onOpen={onOpen}
     />
   );
 }
@@ -95,10 +102,22 @@ function Tile(props: {
   icon: ReactNode;
   activeColor?: string;
   onToggle(): void;
-  onMore(): void;
+  /** Tap on the tile body: open its list (Wi-Fi, Bluetooth). */
+  onOpen(): void;
+  onMore?(): void;
 }) {
   return (
-    <div className={`group relative flex h-[70px] flex-col justify-between rounded-2xl bg-white/8 p-2.5 ${props.disabled ? "opacity-40" : ""}`}>
+    <div
+      role="button"
+      tabIndex={props.disabled ? -1 : 0}
+      aria-label={`${props.label} options`}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!props.disabled) props.onOpen();
+      }}
+      onKeyDown={(e) => e.key === "Enter" && !props.disabled && props.onOpen()}
+      className={`group relative flex h-[70px] cursor-pointer flex-col justify-between rounded-2xl bg-white/8 p-2.5 transition hover:bg-white/12 ${props.disabled ? "opacity-40" : ""}`}
+    >
       <div className="flex items-start justify-between">
         <button
           type="button"
@@ -115,7 +134,13 @@ function Tile(props: {
         >
           {props.icon}
         </button>
-        <MoreButton label={`${props.label} settings`} onClick={props.onMore} subtle />
+        {props.onMore ? (
+          <MoreButton label={`${props.label} settings`} onClick={props.onMore} subtle />
+        ) : (
+          <span className="pt-1 text-white/30 transition group-hover:text-white/70">
+            <ChevronIcon size={13} />
+          </span>
+        )}
       </div>
       <div className="min-w-0 leading-tight">
         <div className="text-[11.5px] font-semibold text-white">{props.label}</div>

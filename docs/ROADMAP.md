@@ -27,6 +27,8 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - ✅ Volume + mute (Core Audio, live via endpoint callbacks), follows default-device changes
 - ✅ Brightness: laptop panels via WMI, external monitors via DDC/CI
 - ✅ Wi-Fi / Bluetooth toggles (WinRT Radios), network name + signal, ethernet/cellular aware
+- ✅ Wi-Fi list in the island: scan, join (saved or with password), disconnect
+- ✅ Bluetooth list in the island: connect/disconnect audio devices, pair new devices (PIN confirm), forget
 - ✅ Focus mode (Isle-level: silences island alerts; shortcut to Windows Focus settings)
 - ✅ CPU / RAM / GPU (PDH "GPU Engine") / network / disk with 60 s sparklines, sampled only while visible
 - ✅ Weather (Open-Meteo, no key): current, high/low, rain chance, 6-hour strip; city search or device location; °C/°F

@@ -1,6 +1,6 @@
 import type {
   Artwork, BatteryState, ControlAction, ControlsState, EventMap, MediaAction, MediaState, Rect, Settings, SettingsPage,
-  Weather, WeatherLocation,
+  Weather, WeatherLocation, WifiNetwork, WifiConnectResult, BtDevice, BtAction,
 } from "./types";
 
 /**
@@ -30,6 +30,14 @@ export interface Backend {
   locationCurrent(): Promise<{ latitude: number; longitude: number }>;
   weather(loc: WeatherLocation, fahrenheit: boolean): Promise<Weather>;
   geocode(query: string): Promise<WeatherLocation[]>;
+  wifiScan(): Promise<WifiNetwork[]>;
+  wifiConnect(ssid: string, password?: string): Promise<WifiConnectResult>;
+  wifiDisconnect(): Promise<void>;
+  btDevices(): Promise<BtDevice[]>;
+  /** Look for new devices to pair while the Bluetooth list is open. */
+  btSetDiscovery(active: boolean): Promise<void>;
+  btAction(id: string, action: BtAction): Promise<void>;
+  btPairRespond(accept: boolean): Promise<void>;
   on<K extends keyof EventMap>(event: K, cb: (payload: EventMap[K]) => void): () => void;
 }
 

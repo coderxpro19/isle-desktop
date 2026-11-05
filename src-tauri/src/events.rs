@@ -8,3 +8,7 @@ pub const ISLAND_HOVER: &str = "island://hover";
 pub const SETTINGS_CHANGED: &str = "settings://changed";
 pub const CONTROLS_CHANGED: &str = "controls://changed";
 pub const STATS_TICK: &str = "stats://tick";
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const BT_CHANGED: &str = "bt://changed";
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const BT_PAIRING: &str = "bt://pairing";

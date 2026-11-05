@@ -38,3 +38,8 @@ button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .isle-marquee { animation: none; }
 }
+
+.isle-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+}

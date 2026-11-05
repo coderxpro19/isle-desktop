@@ -28,6 +28,8 @@ export function DevStage() {
       if (q.get("focus")) useIsland.getState().updateSettings((s) => ({ ...s, island: { ...s.island, focusMode: true } }));
       const tb = q.get("tab") as Tab | null;
       if (tb) useIsland.setState({ tab: tb });
+      const cv = q.get("view");
+      if (cv === "wifi" || cv === "bluetooth") useIsland.setState({ controlsView: cv });
       const md = q.get("mode") as Mode | null;
       if (md) useIsland.setState({ mode: md, hovered: md !== "compact" });
     }, 150);

@@ -1,5 +1,5 @@
 import type { Backend } from "./backend";
-import type { Artwork, BatteryState, ControlsState, EventMap, MediaState, Rect, Settings, StatsTick, Weather } from "./types";
+import type { Artwork, BatteryState, BtDevice, ControlsState, WifiNetwork, EventMap, MediaState, Rect, Settings, StatsTick, Weather } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 /** Fake tracks with generated cover art, for designing in a browser. */
@@ -63,6 +63,21 @@ export function createMockBackend(): Backend {
     controls = { ...controls, ...patch };
     emit("controls://changed", controls);
   };
+
+  let wifi: WifiNetwork[] = [
+    { ssid: "Home-5G", signal: 4, secured: true, saved: true, connected: true },
+    { ssid: "Home-2.4G", signal: 3, secured: true, saved: true, connected: false },
+    { ssid: "MTN_4G_Router", signal: 3, secured: true, saved: false, connected: false },
+    { ssid: "Cafe Neo Guest", signal: 2, secured: false, saved: false, connected: false },
+    { ssid: "DIRECT-HP Printer", signal: 1, secured: true, saved: false, connected: false },
+  ];
+  let bt: BtDevice[] = [
+    { id: "bt1", name: "Galaxy Buds2 Pro", kind: "audio", paired: true, connected: true, canConnect: true },
+    { id: "bt2", name: "JBL Flip 6", kind: "audio", paired: true, connected: false, canConnect: true },
+    { id: "bt3", name: "MX Master 3S", kind: "input", paired: true, connected: true, canConnect: false },
+  ];
+  let pairResolve: (() => void) | null = null;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   // Plausible, gently wandering stats while the stats tab is open.
   let statsActive = false;
@@ -224,6 +239,52 @@ export function createMockBackend(): Backend {
     },
     async openSettings(page) {
       console.info(`[mock] open settings: ${page}`);
+    },
+    async wifiScan() {
+      await sleep(900);
+      return wifi;
+    },
+    async wifiConnect(ssid, password) {
+      await sleep(1200);
+      const n = wifi.find((w) => w.ssid === ssid);
+      if (!n) return { status: "failed", message: `${ssid} is out of range` };
+      if (n.secured && !n.saved && !password) return { status: "needsPassword" };
+      if (password && password.length < 8) return { status: "wrongPassword" };
+      wifi = wifi.map((w) => ({ ...w, connected: w.ssid === ssid, saved: w.saved || w.ssid === ssid }));
+      setControls({ network: { kind: "wifi", name: ssid, signal: n.signal + 1, online: true } });
+      return { status: "connected" };
+    },
+    async wifiDisconnect() {
+      wifi = wifi.map((w) => ({ ...w, connected: false }));
+      setControls({ network: { kind: "none", name: null, signal: null, online: false } });
+    },
+    async btDevices() {
+      return bt;
+    },
+    async btSetDiscovery(active) {
+      if (active && !bt.some((d) => !d.paired)) {
+        setTimeout(() => {
+          bt = [...bt, { id: "bt9", name: "Oraimo FreePods 4", kind: "other", paired: false, connected: false, canConnect: false }];
+          emit("bt://changed", null);
+        }, 1500);
+      }
+    },
+    async btAction(id, action) {
+      await sleep(700);
+      if (action === "pair") {
+        emit("bt://pairing", { id, kind: "confirmPin", pin: "482913" });
+        await new Promise<void>((r) => (pairResolve = r));
+        emit("bt://pairing", null);
+      }
+      bt = bt
+        .filter((d) => !(action === "forget" && d.id === id))
+        .map((d) =>
+          d.id !== id ? d : { ...d, connected: action === "connect" || action === "pair" ? true : action === "disconnect" ? false : d.connected, paired: true, kind: action === "pair" ? "audio" : d.kind, canConnect: action === "pair" || d.canConnect },
+        );
+      emit("bt://changed", null);
+    },
+    async btPairRespond() {
+      pairResolve?.();
     },
     locationCurrent: async () => ({ latitude: 6.455, longitude: 3.394 }),
     async weather(_loc, fahrenheit): Promise<Weather> {

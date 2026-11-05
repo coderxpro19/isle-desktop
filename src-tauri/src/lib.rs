@@ -6,6 +6,7 @@
 //! - `media`    now-playing via Windows media sessions + controls
 //! - `audio`    loopback capture -> spectrum bands for the visualiser
 //! - `settings` persisted user settings
+//! - `connect`  Wi-Fi network list/join, Bluetooth devices/pair/connect
 //! - `controls` volume, brightness, Wi-Fi, Bluetooth, network
 //! - `stats`    CPU / RAM / GPU / network / disk sampling
 //! - `fullscreen` hide islands over full-screen apps
@@ -14,6 +15,7 @@
 //! - `events`   names of every event emitted to the UI
 
 mod audio;
+mod connect;
 mod controls;
 mod events;
 mod fullscreen;
@@ -55,6 +57,7 @@ pub fn run() {
             app.manage(audio::Visualizer::spawn(handle.clone()));
             app.manage(controls::ControlsService::spawn(handle.clone()));
             app.manage(stats::StatsService::spawn(handle.clone()));
+            app.manage(connect::ConnectService::new(handle.clone()));
 
             power::spawn_monitor(handle.clone());
             island::create_windows(&handle)?;
@@ -79,6 +82,13 @@ pub fn run() {
             stats::stats_set_active,
             system::open_settings,
             system::location_current,
+            connect::wifi_scan,
+            connect::wifi_connect,
+            connect::wifi_disconnect,
+            connect::bt_devices,
+            connect::bt_set_discovery,
+            connect::bt_action,
+            connect::bt_pair_respond,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Isle");

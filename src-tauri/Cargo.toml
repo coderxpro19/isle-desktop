@@ -1,6 +1,6 @@
 [package]
 name = "isle"
-version = "0.2.0"
+version = "0.3.0"
 description = "Isle — a Dynamic Island and dock for Windows"
 authors = ["coderxpro19"]
 edition = "2021"
@@ -32,13 +32,18 @@ sysinfo = { version = "0.40", default-features = false, features = ["system", "d
 [target.'cfg(windows)'.dependencies]
 # Needed by the `#[implement]` macro for COM callbacks.
 windows-core = "0.62"
+windows-collections = "0.3"
 windows = { version = "0.62", features = [
+  "Devices_Bluetooth",
+  "Devices_Enumeration",
   "Devices_Geolocation",
   "Devices_Radios",
+  "Devices_WiFi",
   "Foundation",
   "Foundation_Collections",
   "Media_Control",
   "Networking_Connectivity",
+  "Security_Credentials",
   "Storage_Streams",
   "Win32_Devices_Display",
   "Win32_Devices_FunctionDiscovery",
@@ -46,6 +51,8 @@ windows = { version = "0.62", features = [
   "Win32_Graphics_Gdi",
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",
+  "Win32_Media_KernelStreaming",
+  "Win32_NetworkManagement_WiFi",
   "Win32_System_Com",
   "Win32_System_Com_StructuredStorage",
   "Win32_System_Ole",

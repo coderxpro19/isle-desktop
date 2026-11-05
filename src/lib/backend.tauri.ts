@@ -27,6 +27,13 @@ export function createTauriBackend(): Backend {
     setStatsActive: (active) => invoke("stats_set_active", { active }),
     openSettings: (page) => invoke("open_settings", { page }),
     locationCurrent: () => invoke("location_current"),
+    wifiScan: () => invoke("wifi_scan"),
+    wifiConnect: (ssid, password) => invoke("wifi_connect", { ssid, password: password ?? null }),
+    wifiDisconnect: () => invoke("wifi_disconnect"),
+    btDevices: () => invoke("bt_devices"),
+    btSetDiscovery: (active) => invoke("bt_set_discovery", { active }),
+    btAction: (id, action) => invoke("bt_action", { id, action }),
+    btPairRespond: (accept) => invoke("bt_pair_respond", { accept }),
     weather: fetchWeather,
     geocode,
     on(event, cb) {

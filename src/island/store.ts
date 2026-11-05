@@ -1,10 +1,12 @@
 import { create } from "zustand";
 import type { Backend } from "@/lib/backend";
-import type { BatteryState, ControlsState, MediaState, Settings, StatsTick, Weather } from "@/lib/types";
+import type { BatteryState, ControlsState, MediaState, PairingPrompt, Settings, StatsTick, Weather } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/types";
 
 export type Mode = "compact" | "peek" | "expanded";
 export type Tab = "home" | "controls" | "weather" | "stats";
+/** Sub-page inside the Controls tab. */
+export type ControlsView = "main" | "wifi" | "bluetooth";
 
 /** How many seconds of stats history the sparklines keep. */
 export const STATS_HISTORY = 60;
@@ -40,6 +42,8 @@ export interface IslandState {
   stats: StatsTick[];
   weather: Weather | null;
   weatherError: string | null;
+  controlsView: ControlsView;
+  btPrompt: PairingPrompt | null;
 
   setMode(mode: Mode): void;
   setTab(tab: Tab): void;
@@ -69,10 +73,12 @@ export const useIsland = create<IslandState>((set, get) => ({
   stats: [],
   weather: null,
   weatherError: null,
+  controlsView: "main",
+  btPrompt: null,
 
   // Collapsing resets to the home tab, like iOS widgets do.
-  setMode: (mode) => set(mode === "compact" ? { mode, tab: "home" } : { mode }),
-  setTab: (tab) => set({ tab }),
+  setMode: (mode) => set(mode === "compact" ? { mode, tab: "home", controlsView: "main" } : { mode }),
+  setTab: (tab) => set({ tab, controlsView: "main" }),
   pin() {
     set((s) => ({ pins: s.pins + 1 }));
     let released = false;

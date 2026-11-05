@@ -35,6 +35,7 @@ export function useBackendSync() {
         backend.on("island://hover", (inside) => useIsland.getState().setHovered(inside)),
         backend.on("controls://changed", (controls) => useIsland.setState({ controls })),
         backend.on("stats://tick", (t) => useIsland.getState().pushStats(t)),
+        backend.on("bt://pairing", (btPrompt) => useIsland.setState({ btPrompt })),
       );
 
       const [settings, battery, media, art, controls] = await Promise.all([

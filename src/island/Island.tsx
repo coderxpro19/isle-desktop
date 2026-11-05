@@ -47,7 +47,10 @@ export function Island() {
   );
   const primary = activities[0]?.kind ?? null;
   const bubbles = activities.slice(1, 3);
-  const size = pillSize(mode, primary, cornerRadius, tab);
+  const controlsView = useIsland((s) => s.controlsView);
+  const base = pillSize(mode, primary, cornerRadius, tab);
+  // Wi-Fi / Bluetooth lists get extra room.
+  const size = mode === "expanded" && tab === "controls" && controlsView !== "main" ? { ...base, h: TAB_BAR_H + 316 } : base;
 
   const spring: Transition = reduceMotion
     ? { duration: 0 }

@@ -135,6 +135,38 @@ export interface Weather {
   hourly: { time: string; temp: number; code: number; isDay: boolean }[];
 }
 
+export interface WifiNetwork {
+  ssid: string;
+  /** 0–4 */
+  signal: number;
+  secured: boolean;
+  saved: boolean;
+  connected: boolean;
+}
+
+export type WifiConnectResult =
+  | { status: "connected" }
+  | { status: "needsPassword" }
+  | { status: "wrongPassword" }
+  | { status: "failed"; message: string };
+
+export interface BtDevice {
+  id: string;
+  name: string;
+  kind: "audio" | "input" | "phone" | "computer" | "wearable" | "other";
+  paired: boolean;
+  connected: boolean;
+  canConnect: boolean;
+}
+
+export type BtAction = "connect" | "disconnect" | "pair" | "forget";
+
+export interface PairingPrompt {
+  id: string;
+  kind: "confirmPin" | "displayPin";
+  pin: string;
+}
+
 /** Spectrum frame: 12 bands, 0-255. */
 export type Spectrum = number[];
 
@@ -147,4 +179,6 @@ export interface EventMap {
   "settings://changed": Settings;
   "controls://changed": ControlsState;
   "stats://tick": StatsTick;
+  "bt://changed": null;
+  "bt://pairing": PairingPrompt | null;
 }
