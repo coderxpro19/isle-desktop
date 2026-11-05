@@ -36,7 +36,7 @@ use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyS
 use windows::Win32::UI::Shell::{
     BHID_EnumItems, IEnumShellItems, IShellItem, IShellItem2, IShellItemImageFactory,
     SHCreateItemFromParsingName, SHDefExtractIconW, SHEmptyRecycleBinW, SHQueryRecycleBinW,
-    ShellExecuteW, SHQUERYRBINFO, SIGDN_NORMALDISPLAY, SIGDN_PARENTRELATIVEPARSING,
+    ShellExecuteW, SHQUERYRBINFO, SIGDN_NORMALDISPLAY, SIGDN_PARENTRELATIVEPARSING, SIIGBF,
     SIIGBF_BIGGERSIZEOK, SIIGBF_ICONONLY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -454,15 +454,27 @@ pub fn hicon_png(h: isize) -> Option<String> {
 }
 
 fn shell_image(parsing: &str) -> Option<Vec<u8>> {
+    shell_image_flags(parsing, SIIGBF_ICONONLY | SIIGBF_BIGGERSIZEOK)
+}
+
+/// A file's thumbnail (photos, videos, PDFs…) or its icon, as a PNG data URL.
+pub fn thumbnail(path: &str) -> Option<String> {
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+    }
+    shell_image_flags(path, SIIGBF_BIGGERSIZEOK).map(|bytes| {
+        format!(
+            "data:image/png;base64,{}",
+            base64::engine::general_purpose::STANDARD.encode(bytes)
+        )
+    })
+}
+
+fn shell_image_flags(parsing: &str, flags: SIIGBF) -> Option<Vec<u8>> {
     let item = shell_item(parsing)?;
     unsafe {
         let factory: IShellItemImageFactory = item.cast().ok()?;
-        let bmp = factory
-            .GetImage(
-                SIZE { cx: 96, cy: 96 },
-                SIIGBF_ICONONLY | SIIGBF_BIGGERSIZEOK,
-            )
-            .ok()?;
+        let bmp = factory.GetImage(SIZE { cx: 96, cy: 96 }, flags).ok()?;
         let png = bitmap_to_png(bmp, true);
         let _ = DeleteObject(HGDIOBJ(bmp.0));
         png

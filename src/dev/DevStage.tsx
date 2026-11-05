@@ -45,6 +45,13 @@ export function DevStage() {
       if (q.get("preview")) setTimeout(() => useDock.setState({ preview: { key: "chrome", x: window.innerWidth / 2 - 40 } }), 400);
       if (q.get("menu")) setTimeout(() => useDock.setState({ menu: { key: "code", x: window.innerWidth / 2 + 60 } }), 400);
       if (q.get("cal")) addDemoCalendar();
+      if (q.get("notify")) {
+        window.__isleMock?.notify();
+        window.__isleMock?.notify();
+        window.__isleMock?.notify();
+      }
+      if (q.get("shelf")) dropDemoFiles();
+      if (q.get("dropping")) useIsland.setState({ dropping: true });
       if (q.get("timer")) startDemoTimer();
       if (q.get("hud")) showHud();
       const ck = q.get("clock") as ClockView | null;
@@ -88,7 +95,7 @@ export function DevStage() {
           ))}
         </Group>
         <Group label="Tab">
-          {(["home", "controls", "clock", "weather", "stats"] as const).map((t) => (
+          {(["home", "controls", "clock", "notifications", "shelf", "weather", "stats"] as const).map((t) => (
             <Btn key={t} on={tab === t && mode === "expanded"} onClick={() => useIsland.setState({ mode: "expanded", hovered: true, tab: t })}>
               {t}
             </Btn>
@@ -115,6 +122,8 @@ export function DevStage() {
           <Btn onClick={() => useIsland.setState((s) => ({ clock: { ...s.clock, stopwatch: toggleStopwatch(s.clock.stopwatch, Date.now()) } }))}>stopwatch</Btn>
           <Btn onClick={() => useIsland.setState((s) => ({ clock: { ...s.clock, pomodoro: startPomodoro(Date.now()) } }))}>focus</Btn>
           <Btn onClick={addDemoCalendar}>calendar</Btn>
+          <Btn onClick={() => window.__isleMock?.notify()}>notification</Btn>
+          <Btn onClick={dropDemoFiles}>drop files</Btn>
         </Group>
         <Group label="Dock">
           {(["fixed", "autoHide", "smart"] as const).map((m) => (
@@ -171,4 +180,14 @@ function addDemoCalendar() {
     ...s,
     calendar: { feeds: [{ url: "https://calendar.example/demo.ics", name: "Work", color: "#5aa2ff" }] },
   }));
+}
+function dropDemoFiles() {
+  window.__isleMock?.drop([
+    "C:\\Users\\you\\Desktop\\Isle pitch deck.pdf",
+    "C:\\Users\\you\\Pictures\\lagos-sunset.jpg",
+    "C:\\Users\\you\\Music\\Collabo - Jai Besoin De Toi.mp3",
+    "C:\\Users\\you\\Documents\\Invoices",
+    "C:\\Users\\you\\Downloads\\setup-notes.txt",
+    "C:\\Users\\you\\Desktop\\brand-board-final-v3.png",
+  ]);
 }

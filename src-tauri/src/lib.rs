@@ -27,8 +27,10 @@ mod fullscreen;
 mod hud;
 mod island;
 mod media;
+mod notify;
 mod power;
 mod settings;
+mod shelf;
 mod shell;
 mod stats;
 mod system;
@@ -86,6 +88,7 @@ pub fn run() {
             app.manage(connect::ConnectService::new(handle.clone()));
             app.manage(dock::DockService::new());
             app.manage(tray_host::TrayHost::default());
+            app.manage(notify::Notifications::spawn(handle.clone()));
             log::info!("setup: services started");
 
             power::spawn_monitor(handle.clone());
@@ -160,6 +163,15 @@ pub fn run() {
             dock::app_quit,
             tray_host::tray_icons,
             calendar::calendar_fetch,
+            notify::notify_state,
+            notify::notify_dismiss,
+            notify::notify_open,
+            notify::notify_settings,
+            shelf::shelf_info,
+            shelf::shelf_thumb,
+            shelf::shelf_open,
+            shelf::shelf_reveal,
+            shelf::shelf_drag,
             tray_host::tray_click,
             dock::app_reload,
         ])

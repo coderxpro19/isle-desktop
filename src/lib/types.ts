@@ -57,6 +57,7 @@ export interface Settings {
     hideInFullscreen: boolean;
     focusMode: boolean;
     volumeHud: boolean;
+    notifications: boolean;
   };
   appearance: {
     accent: string;
@@ -114,12 +115,36 @@ export const DEFAULT_SETTINGS: Settings = {
     hideInFullscreen: true,
     focusMode: false,
     volumeHud: true,
+    notifications: true,
   },
   appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false },
   weather: { location: null, fahrenheit: false },
   dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 40, pinned: null },
   calendar: { feeds: [] },
 };
+
+export interface Notice {
+  id: number;
+  app: string;
+  appId: string;
+  title: string;
+  body: string;
+  icon: string | null;
+  atMs: number;
+}
+export interface NoticeState {
+  access: "unknown" | "allowed" | "denied" | "unsupported";
+  /** Newest first. */
+  items: Notice[];
+}
+export interface FileInfo {
+  path: string;
+  name: string;
+  exists: boolean;
+  isDir: boolean;
+  size: number;
+}
+export type FileDrop = { type: "enter" | "over"; paths: string[] } | { type: "leave" } | { type: "drop"; paths: string[] };
 
 export type Hud = { kind: "volume"; level: number; muted: boolean } | { kind: "brightness"; level: number };
 
@@ -265,5 +290,7 @@ export interface EventMap {
   "dock://overlap": boolean;
   "tray://icons": TrayIcon[];
   "hud://show": Hud;
+  "notify://new": Notice;
+  "notify://changed": NoticeState;
   "launcher://opened": null;
 }

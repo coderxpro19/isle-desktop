@@ -8,6 +8,8 @@ import { describe } from "@/lib/weather";
 import type { Tab } from "../store";
 import { ClockPanel } from "./ClockPanel";
 import { ControlsPanel } from "./ControlsPanel";
+import { NotificationsPanel } from "./NotificationsPanel";
+import { ShelfPanel } from "./ShelfPanel";
 import { LIVE_KINDS, LiveContent } from "./Live";
 import { BatteryGlyph, BoltIcon, MoonIcon, NextIcon, NoteIcon, PauseIcon, PlayIcon, PrevIcon, WeatherGlyph } from "./icons";
 import { StatsPanel } from "./StatsPanel";
@@ -184,6 +186,10 @@ export function ExpandedContent({ primary, tab }: { primary: ActivityKind | null
       return <StatsPanel />;
     case "clock":
       return <ClockPanel />;
+    case "notifications":
+      return <NotificationsPanel />;
+    case "shelf":
+      return <ShelfPanel />;
     case "home":
       return (
         <div className="flex h-full flex-col">

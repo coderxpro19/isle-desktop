@@ -59,6 +59,8 @@ pub struct IslandSettings {
     pub focus_mode: bool,
     /// Volume keys show Isle's HUD instead of the Windows flyout.
     pub volume_hud: bool,
+    /// Show Windows notifications on the island.
+    pub notifications: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -158,6 +160,7 @@ impl Default for IslandSettings {
             hide_in_fullscreen: true,
             focus_mode: false,
             volume_hud: true,
+            notifications: true,
         }
     }
 }

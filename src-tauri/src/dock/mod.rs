@@ -4,7 +4,18 @@
 #[cfg(windows)]
 mod win;
 #[cfg(windows)]
-pub(crate) use win::hicon_png;
+pub(crate) use win::{hicon_png, thumbnail};
+
+/// ShellExecute "open" on a path, URL or shell: location.
+pub(crate) fn open_shell(target: &str) -> Result<(), String> {
+    #[cfg(windows)]
+    return win::shell_open(target, None);
+    #[cfg(not(windows))]
+    {
+        let _ = target;
+        Err("not supported on this platform".into())
+    }
+}
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};

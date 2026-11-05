@@ -165,3 +165,18 @@ export const CalendarIcon = (p: P) => (
 export const FlagIcon = (p: P) => (
   <svg {...stroke(p)}><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>
 );
+export const BellIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2ZM10 20.5a2.2 2.2 0 0 0 4 0" /></svg>
+);
+export const ShelfIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="M4 13.5 6.5 6h11l2.5 7.5V18a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18v-4.5Z" /><path d="M4 13.5h4.5l1.2 2h4.6l1.2-2H20" /></svg>
+);
+export const CloseIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="m7 7 10 10M17 7 7 17" /></svg>
+);
+export const FolderIcon = (p: P) => (
+  <svg {...base(p)}><path d="M3 7.2C3 6 4 5 5.2 5h4.1c.6 0 1.1.2 1.5.6L12.2 7h6.6C20 7 21 8 21 9.2v8.6c0 1.2-1 2.2-2.2 2.2H5.2C4 20 3 19 3 17.8V7.2Z" /></svg>
+);
+export const FileIcon = (p: P) => (
+  <svg {...base(p)}><path d="M6.5 2.5h7l5 5v12.3c0 .9-.8 1.7-1.7 1.7H6.5c-.9 0-1.7-.8-1.7-1.7V4.2c0-.9.8-1.7 1.7-1.7Z" opacity=".9" /><path d="M13.5 2.5v4.2c0 .4.4.8.8.8h4.2" fill="rgba(0,0,0,.25)" /></svg>
+);

@@ -1,8 +1,7 @@
 import type {
   Artwork, BatteryState, ControlAction, ControlsState, EventMap, MediaAction, MediaState, Rect, Settings, SettingsPage,
   Weather, WeatherLocation, WifiNetwork, WifiConnectResult, BtDevice, BtAction, UpdateInfo,
-  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction, TrayIcon, TrayButton,
-} from "./types";
+  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction, TrayIcon, TrayButton, FileDrop, FileInfo, NoticeState } from "./types";
 
 /**
  * Everything the UI needs from the native side. Two implementations:
@@ -61,6 +60,20 @@ export interface Backend {
   quit(): Promise<void>;
   trayIcons(): Promise<TrayIcon[]>;
   /** Download ICS feeds (natively: calendar servers don't allow browser fetches). */
+  notifyState(): Promise<NoticeState>;
+  /** Remove one notification from the Action Center (or all with null). */
+  notifyDismiss(id: number | null): Promise<void>;
+  notifyOpen(appId: string): Promise<void>;
+  /** Windows privacy page for notification access. */
+  notifySettings(): Promise<void>;
+  shelfInfo(paths: string[]): Promise<FileInfo[]>;
+  shelfThumb(path: string): Promise<string | null>;
+  shelfOpen(path: string): Promise<void>;
+  shelfReveal(path: string): Promise<void>;
+  /** Native drag of files out of the island; call while the mouse button is down. */
+  shelfDrag(paths: string[]): Promise<void>;
+  /** Files dragged over / dropped on this window. */
+  onFileDrop(cb: (e: FileDrop) => void): () => void;
   calendarFetch(urls: string[]): Promise<{ url: string; ics: string | null; error: string | null }[]>;
   /** x/y: icon centre in dock-window px. */
   trayClick(id: string, button: TrayButton, x: number, y: number): Promise<void>;

@@ -73,6 +73,31 @@ export function createTauriBackend(): Backend {
     quit: () => invoke("app_quit"),
     trayIcons: () => invoke("tray_icons"),
     calendarFetch: (urls) => invoke("calendar_fetch", { urls }),
+    notifyState: () => invoke("notify_state"),
+    notifyDismiss: (id) => invoke("notify_dismiss", { id }),
+    notifyOpen: (appId) => invoke("notify_open", { appId }),
+    notifySettings: () => invoke("notify_settings"),
+    shelfInfo: (paths) => invoke("shelf_info", { paths }),
+    shelfThumb: (path) => invoke("shelf_thumb", { path }),
+    shelfOpen: (path) => invoke("shelf_open", { path }),
+    shelfReveal: (path) => invoke("shelf_reveal", { path }),
+    shelfDrag: (paths) => invoke("shelf_drag", { paths }),
+    onFileDrop(cb) {
+      let off: (() => void) | null = null;
+      let dead = false;
+      void win
+        .onDragDropEvent((e) => {
+          const p = e.payload;
+          if (p.type === "leave") cb({ type: "leave" });
+          else if (p.type === "drop") cb({ type: "drop", paths: p.paths });
+          else cb({ type: p.type, paths: p.type === "enter" ? p.paths : [] });
+        })
+        .then((u) => (dead ? u() : (off = u)));
+      return () => {
+        dead = true;
+        off?.();
+      };
+    },
     trayClick: (id, button, x, y) => invoke("tray_click", { id, button, x, y }),
     reload: () => invoke("app_reload"),
     weather: fetchWeather,

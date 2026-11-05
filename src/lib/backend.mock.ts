@@ -1,5 +1,5 @@
 import type { Backend } from "./backend";
-import type { Artwork, BatteryState, BtDevice, ControlsState, DockApp, LauncherApp, WifiNetwork, EventMap, MediaState, Rect, Settings, StatsTick, Weather } from "./types";
+import type { Artwork, BatteryState, BtDevice, ControlsState, DockApp, LauncherApp, WifiNetwork, EventMap, MediaState, Rect, Settings, StatsTick, Weather, FileDrop, Notice, NoticeState } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 /** Fake tracks with generated cover art, for designing in a browser. */
@@ -25,6 +25,8 @@ export interface MockControls {
   setBattery(patch: Partial<BatteryState>): void;
   setControls(patch: Partial<ControlsState>): void;
   nextTrack(): void;
+  notify(n?: Partial<Notice>): void;
+  drop(paths: string[]): void;
 }
 
 declare global {
@@ -177,7 +179,31 @@ export function createMockBackend(): Backend {
     if (media?.playing && position(media) >= media.durationMs) loadTrack(++trackIdx, true);
   }, 1000);
 
+  let notices: NoticeState = { access: "allowed", items: [] };
+  let noticeId = 1;
+  const dropCbs = new Set<(e: FileDrop) => void>();
+  const sampleNotices: Partial<Notice>[] = [
+    { app: "WhatsApp", title: "Tolu", body: "Are we still on for 6? 🙌" },
+    { app: "Outlook", title: "Design review moved", body: "Now Thursday 3:00 PM · Room 4" },
+    { app: "Slack", title: "#isle-dev", body: "Ada: the new shelf is so good" },
+  ];
+  const appIcon = (app: string) =>
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="8" fill="${app === "WhatsApp" ? "#25d366" : app === "Outlook" ? "#0a64d6" : "#611f69"}"/><text x="16" y="21.5" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="white">${app[0]}</text></svg>`,
+    )}`;
+
   window.__isleMock = {
+    notify(n) {
+      const base = sampleNotices[(noticeId - 1) % sampleNotices.length]!;
+      const app = n?.app ?? base.app ?? "App";
+      const notice: Notice = { id: noticeId++, app, appId: app, title: "", body: "", icon: appIcon(app), atMs: Date.now(), ...base, ...n };
+      notices = { ...notices, items: [notice, ...notices.items] };
+      emit("notify://new", notice);
+      emit("notify://changed", notices);
+    },
+    drop(paths) {
+      dropCbs.forEach((cb) => cb({ type: "drop", paths }));
+    },
     setMedia(mode) {
       if (mode === "none") {
         media = null;
@@ -377,6 +403,31 @@ export function createMockBackend(): Backend {
         tip: tip!,
         icon: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="14" fill="${color}"/><text x="16" y="21.5" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="white">${g}</text></svg>`)}`,
       })),
+    async notifyState() {
+      return notices;
+    },
+    async notifyDismiss(id) {
+      notices = { ...notices, items: id === null ? [] : notices.items.filter((n) => n.id !== id) };
+      emit("notify://changed", notices);
+    },
+    async notifyOpen() {},
+    async notifySettings() {},
+    async shelfInfo(paths) {
+      return paths.map((path) => {
+        const name = path.split(/[\\/]/).pop() ?? path;
+        return { path, name, exists: true, isDir: !name.includes("."), size: 1024 * (name.length * 37) };
+      });
+    },
+    async shelfThumb() {
+      return null;
+    },
+    async shelfOpen() {},
+    async shelfReveal() {},
+    async shelfDrag() {},
+    onFileDrop(cb) {
+      dropCbs.add(cb);
+      return () => dropCbs.delete(cb);
+    },
     async calendarFetch(urls) {
       const pad = (n: number) => String(n).padStart(2, "0");
       const at = (dayOffset: number, h: number, m = 0) => {

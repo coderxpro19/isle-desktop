@@ -21,3 +21,9 @@ pub const TRAY_ICONS: &str = "tray://icons";
 /// Volume / brightness HUD (`controls::Hud`).
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const HUD: &str = "hud://show";
+/// A new Windows notification arrived (payload: `notify::Notice`).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const NOTIFY_NEW: &str = "notify://new";
+/// The notification list or access changed (payload: `notify::NoticeState`).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const NOTIFY_CHANGED: &str = "notify://changed";

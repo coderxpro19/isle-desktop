@@ -17,10 +17,11 @@ export type ActivityKind =
   | "timer"
   | "pomodoro"
   | "stopwatch"
-  | "event";
+  | "event"
+  | "notification";
 
 /** Transient alerts: short, wide, and they take the pill. */
-export const TRANSIENT_KINDS: ActivityKind[] = ["charging", "lowBattery", "update", "hud", "timerDone"];
+export const TRANSIENT_KINDS: ActivityKind[] = ["charging", "lowBattery", "update", "hud", "timerDone", "notification"];
 /** Activities whose detail lives on the Clock tab. */
 export const CLOCK_KINDS: ActivityKind[] = ["timer", "pomodoro", "stopwatch", "event", "timerDone"];
 
@@ -63,6 +64,7 @@ export function pillSize(mode: Mode, primary: ActivityKind | null, radius: numbe
   if (primary && TRANSIENT_KINDS.includes(primary)) {
     // Transients are wide and short in compact, or take over the peek.
     if (mode === "expanded") return expanded(primary, radius, tab);
+    if (primary === "notification") return { w: 380, h: 56, r: 28 };
     return primary === "hud" ? { w: 300, h: 36, r: 18 } : { w: 320, h: 36, r: 18 };
   }
   const live = primary === "timer" || primary === "pomodoro" || primary === "stopwatch" || primary === "event";
@@ -90,6 +92,10 @@ function expanded(primary: ActivityKind | null, radius: number, tab: Tab): Size 
       return { w: 440, h: TAB_BAR_H + 236, r };
     case "clock":
       return { w: 460, h: TAB_BAR_H + 250, r };
+    case "notifications":
+      return { w: 440, h: TAB_BAR_H + 262, r };
+    case "shelf":
+      return { w: 460, h: TAB_BAR_H + 218, r };
     case "home":
       return primary === "music" ? { w: 440, h: TAB_BAR_H + 206, r } : { w: 420, h: TAB_BAR_H + 160, r };
   }

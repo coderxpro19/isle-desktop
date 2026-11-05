@@ -13,6 +13,7 @@ import {
   useCalendar,
   useClockAlarms,
   useClockTicker,
+  useNotifications,
   useHoverIntent,
   usePanelDemand,
   useTransientExpiry,
@@ -21,6 +22,8 @@ import {
   useWeather,
 } from "./hooks";
 import { useIsland } from "./store";
+import { useShelf } from "./shelf";
+import { openNotice } from "./components/NotificationsPanel";
 
 /** Width/height of the transparent island window (logical px). Mirrors island.rs. */
 export const CANVAS_W = 680;
@@ -37,6 +40,8 @@ export function Island() {
   useUpdater();
   useClockAlarms();
   useCalendar();
+  useNotifications();
+  useShelf();
 
   const mode = useIsland((s) => s.mode);
   const media = useIsland((s) => s.media);
@@ -133,6 +138,10 @@ export function Island() {
           const tk = useIsland.getState().transient?.kind;
           if (tk === "update") useIsland.setState({ transient: null, tab: "home" });
           else if (tk === "hud") useIsland.setState({ transient: null });
+          else if (tk === "notification") {
+            const t = useIsland.getState().transient;
+            if (t?.kind === "notification") return openNotice(t.notice);
+          }
           else if (primary && CLOCK_KINDS.includes(primary)) openClockFor(primary);
           setMode("expanded");
         }}

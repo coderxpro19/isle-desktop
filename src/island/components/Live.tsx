@@ -5,10 +5,11 @@ import { elapsed, fmtClock, fmtCountdown, left } from "../clock";
 import { useTicker } from "../hooks";
 import { useIsland } from "../store";
 import { eventWhen } from "./ClockPanel";
+import { NoticeIcon } from "./NotificationsPanel";
 import { useAccent } from "./Contents";
-import { CalendarIcon, FlagIcon, SpeakerIcon, SunIcon, TimerIcon } from "./icons";
+import { BellIcon, CalendarIcon, FlagIcon, SpeakerIcon, SunIcon, TimerIcon } from "./icons";
 
-export const LIVE_KINDS: ActivityKind[] = ["hud", "timerDone", "timer", "pomodoro", "stopwatch", "event"];
+export const LIVE_KINDS: ActivityKind[] = ["hud", "notification", "timerDone", "timer", "pomodoro", "stopwatch", "event"];
 
 function Row({ children, pad = 14 }: { children: ReactNode; pad?: number }) {
   return (
@@ -51,6 +52,22 @@ export function LiveContent({ kind, big = false }: { kind: ActivityKind; big?: b
   const sub = big ? "text-[12.5px]" : "text-[12px]";
 
   if (kind === "hud") return <HudBar />;
+
+  if (kind === "notification" && transient?.kind === "notification") {
+    const n = transient.notice;
+    return (
+      <div className="flex h-full items-center gap-2.5 pr-5 pl-3">
+        <NoticeIcon n={n} size={32} />
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="flex items-baseline gap-1.5">
+            <span className="truncate text-[12.5px] font-semibold text-white">{n.title || n.app}</span>
+            {n.title && <span className="shrink-0 text-[11px] text-white/40">{n.app}</span>}
+          </div>
+          <div className="truncate text-[12px] text-white/65">{n.body}</div>
+        </div>
+      </div>
+    );
+  }
 
   if (kind === "timerDone" && transient?.kind === "timerDone") {
     return (
@@ -137,6 +154,8 @@ export function LiveBubbleIcon({ kind }: { kind: ActivityKind }) {
       return <CalendarIcon size={15} className="text-[#ff6b5e]" />;
     case "hud":
       return <SpeakerIcon size={15} />;
+    case "notification":
+      return <BellIcon size={15} className="text-white/85" />;
     default:
       return null;
   }

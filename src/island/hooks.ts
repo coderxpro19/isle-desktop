@@ -321,3 +321,25 @@ export function useCalendar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend, key]);
 }
+
+const NOTICE_MS = 5500;
+
+/** Mirror Windows notifications; pop new ones on the pill. */
+export function useNotifications() {
+  const backend = useIsland((s) => s.backend);
+  useEffect(() => {
+    if (!backend) return;
+    void backend.notifyState().then((notices) => useIsland.setState({ notices }), () => {});
+    const offs = [
+      backend.on("notify://changed", (notices) => useIsland.setState({ notices })),
+      backend.on("notify://new", (notice) => {
+        const s = useIsland.getState();
+        if (!s.settings.island.notifications || s.settings.island.focusMode) return;
+        // Don't cover what the user is looking at in the expanded island.
+        if (s.mode === "expanded") return;
+        useIsland.setState({ transient: { kind: "notification", notice, until: Date.now() + NOTICE_MS } });
+      }),
+    ];
+    return () => offs.forEach((off) => off());
+  }, [backend]);
+}
