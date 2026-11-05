@@ -1,5 +1,5 @@
 import type { Backend } from "./backend";
-import type { Artwork, BatteryState, EventMap, MediaState, Rect, Settings } from "./types";
+import type { Artwork, BatteryState, ControlsState, EventMap, MediaState, Rect, Settings, StatsTick, Weather } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 /** Fake tracks with generated cover art, for designing in a browser. */
@@ -23,6 +23,7 @@ function coverArt(h1: number, h2: number, label: string): string {
 export interface MockControls {
   setMedia(mode: "playing" | "paused" | "none"): void;
   setBattery(patch: Partial<BatteryState>): void;
+  setControls(patch: Partial<ControlsState>): void;
   nextTrack(): void;
 }
 
@@ -51,6 +52,41 @@ export function createMockBackend(): Backend {
   let media: MediaState | null = null;
   let artwork: Artwork | null = null;
   let vizActive = false;
+  let controls: ControlsState = {
+    volume: { level: 0.62, muted: false, device: "Speakers (Realtek Audio)" },
+    brightness: { level: 70, source: "internal" },
+    wifi: { on: true },
+    bluetooth: { on: false },
+    network: { kind: "wifi", name: "Home-5G", signal: 4, online: true },
+  };
+  const setControls = (patch: Partial<ControlsState>) => {
+    controls = { ...controls, ...patch };
+    emit("controls://changed", controls);
+  };
+
+  // Plausible, gently wandering stats while the stats tab is open.
+  let statsActive = false;
+  let t = 0;
+  setInterval(() => {
+    if (!statsActive) return;
+    t += 1;
+    const wave = (p: number, a: number) => Math.sin(t / p) * a;
+    const tick: StatsTick = {
+      cpu: Math.max(2, Math.min(98, 18 + wave(5, 9) + Math.random() * 14 + (t % 17 === 0 ? 40 : 0))),
+      cores: 12,
+      memTotal: 16 * 1024 ** 3,
+      memUsed: (9.4 + wave(9, 0.6) + Math.random() * 0.2) * 1024 ** 3,
+      gpu: Math.max(0, 9 + wave(4, 6) + Math.random() * 8),
+      netRx: Math.max(0, 380_000 + wave(3, 300_000) + Math.random() * 200_000),
+      netTx: Math.max(0, 42_000 + wave(4, 30_000) + Math.random() * 20_000),
+      disks: [
+        { mount: "C:", used: 338 * 1024 ** 3, total: 476 * 1024 ** 3 },
+        { mount: "D:", used: 612 * 1024 ** 3, total: 931 * 1024 ** 3 },
+      ],
+      uptimeSecs: 3 * 3600 + 22 * 60 + t,
+    };
+    emit("stats://tick", tick);
+  }, 1000);
 
   const position = (m: MediaState) =>
     Math.min(m.durationMs, m.positionMs + (m.playing ? Date.now() - m.sampledAtMs : 0));
@@ -112,6 +148,7 @@ export function createMockBackend(): Backend {
         emit("media://changed", media);
       }
     },
+    setControls,
     setBattery(patch) {
       battery = { ...battery, ...patch };
       emit("battery://changed", battery);
@@ -157,6 +194,63 @@ export function createMockBackend(): Backend {
     async setSettings(s) {
       settings = s;
       emit("settings://changed", s);
+    },
+    controlsState: async () => controls,
+    async controlsSet(a) {
+      switch (a.type) {
+        case "setVolume":
+          setControls({ volume: controls.volume && { ...controls.volume, level: a.level, muted: a.level > 0 ? false : controls.volume.muted } });
+          break;
+        case "setMute":
+          setControls({ volume: controls.volume && { ...controls.volume, muted: a.muted } });
+          break;
+        case "setBrightness":
+          setControls({ brightness: controls.brightness && { ...controls.brightness, level: a.level } });
+          break;
+        case "setWifi":
+          setControls({
+            wifi: { on: a.on },
+            network: a.on ? { kind: "wifi", name: "Home-5G", signal: 4, online: true } : { kind: "none", name: null, signal: null, online: false },
+          });
+          break;
+        case "setBluetooth":
+          setControls({ bluetooth: { on: a.on } });
+          break;
+      }
+    },
+    async setControlsActive() {},
+    async setStatsActive(active) {
+      statsActive = active;
+    },
+    async openSettings(page) {
+      console.info(`[mock] open settings: ${page}`);
+    },
+    locationCurrent: async () => ({ latitude: 6.455, longitude: 3.394 }),
+    async weather(_loc, fahrenheit): Promise<Weather> {
+      const c = (v: number) => (fahrenheit ? Math.round(v * 1.8 + 32) : v);
+      const hour = new Date().getHours();
+      return {
+        fetchedAt: Date.now(),
+        temp: c(29),
+        feelsLike: c(33),
+        code: 2,
+        isDay: true,
+        high: c(31),
+        low: c(24),
+        precipChance: 40,
+        hourly: [0, 1, 2, 3, 4, 5].map((i) => ({
+          time: `2026-11-05T${String((hour + 1 + i) % 24).padStart(2, "0")}:00`,
+          temp: c([30, 31, 30, 28, 27, 26][i]!),
+          code: [2, 1, 3, 80, 61, 3][i]!,
+          isDay: (hour + 1 + i) % 24 < 18,
+        })),
+      };
+    },
+    async geocode(query) {
+      return [
+        { name: `${query}, Lagos, Nigeria`, latitude: 6.455, longitude: 3.394 },
+        { name: `${query}, Ontario, Canada`, latitude: 43.0, longitude: -81.2 },
+      ];
     },
     on(event, cb) {
       const set = listeners.get(event) ?? new Set();

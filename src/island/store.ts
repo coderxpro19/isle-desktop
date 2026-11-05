@@ -1,9 +1,13 @@
 import { create } from "zustand";
 import type { Backend } from "@/lib/backend";
-import type { BatteryState, MediaState, Settings } from "@/lib/types";
+import type { BatteryState, ControlsState, MediaState, Settings, StatsTick, Weather } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/types";
 
 export type Mode = "compact" | "peek" | "expanded";
+export type Tab = "home" | "controls" | "weather" | "stats";
+
+/** How many seconds of stats history the sparklines keep. */
+export const STATS_HISTORY = 60;
 
 /** Short-lived, attention-grabbing states (iPhone-style "alerts"). */
 export type Transient =
@@ -25,8 +29,23 @@ export interface IslandState {
   transient: Transient | null;
   /** Shared clock, ticked on second/minute boundaries by `useClockTicker`. */
   now: Date;
+  /** Which panel the expanded island shows. */
+  tab: Tab;
+  /**
+   * Keeps the island expanded regardless of hover (slider drags, text input).
+   * A counter so overlapping holds don't release each other.
+   */
+  pins: number;
+  controls: ControlsState | null;
+  stats: StatsTick[];
+  weather: Weather | null;
+  weatherError: string | null;
 
   setMode(mode: Mode): void;
+  setTab(tab: Tab): void;
+  pin(): () => void;
+  pushStats(t: StatsTick): void;
+  updateSettings(f: (s: Settings) => Settings): void;
   setHovered(h: boolean): void;
   applyBattery(b: BatteryState): void;
   applyMedia(m: MediaState | null): void;
@@ -44,15 +63,38 @@ export const useIsland = create<IslandState>((set, get) => ({
   hovered: false,
   transient: null,
   now: new Date(),
+  tab: "home",
+  pins: 0,
+  controls: null,
+  stats: [],
+  weather: null,
+  weatherError: null,
 
-  setMode: (mode) => set({ mode }),
+  // Collapsing resets to the home tab, like iOS widgets do.
+  setMode: (mode) => set(mode === "compact" ? { mode, tab: "home" } : { mode }),
+  setTab: (tab) => set({ tab }),
+  pin() {
+    set((s) => ({ pins: s.pins + 1 }));
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      set((s) => ({ pins: Math.max(0, s.pins - 1) }));
+    };
+  },
+  pushStats: (t) => set((s) => ({ stats: [...s.stats.slice(-(STATS_HISTORY - 1)), t] })),
+  updateSettings(f) {
+    const next = f(get().settings);
+    set({ settings: next });
+    void get().backend?.setSettings(next);
+  },
   setHovered: (hovered) => set({ hovered }),
 
   applyBattery(next) {
     const prev = get().battery;
-    const { chargingActivity } = get().settings.island;
+    const { chargingActivity, focusMode } = get().settings.island;
     let transient = get().transient;
-    if (prev && next.hasBattery && chargingActivity) {
+    if (prev && next.hasBattery && chargingActivity && !focusMode) {
       if (!prev.charging && next.charging) {
         transient = { kind: "charging", percent: next.percent, until: Date.now() + 3200 };
       } else if (!next.charging && next.percent !== null && prev.percent !== null) {

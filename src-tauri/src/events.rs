@@ -6,3 +6,5 @@ pub const MEDIA_ARTWORK: &str = "media://artwork";
 pub const MEDIA_SPECTRUM: &str = "media://spectrum";
 pub const ISLAND_HOVER: &str = "island://hover";
 pub const SETTINGS_CHANGED: &str = "settings://changed";
+pub const CONTROLS_CHANGED: &str = "controls://changed";
+pub const STATS_TICK: &str = "stats://tick";

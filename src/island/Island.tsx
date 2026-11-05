@@ -1,15 +1,18 @@
 import { AnimatePresence, motion, type Transition } from "motion/react";
 import { useEffect, useMemo, useRef } from "react";
 import type { Rect } from "@/lib/types";
-import { BUBBLE, BUBBLE_GAP, PILL_TOP, deriveActivities, pillSize, type Activity } from "./activities";
+import { BUBBLE, BUBBLE_GAP, PILL_TOP, TAB_BAR_H, deriveActivities, pillSize, type Activity } from "./activities";
 import { CompactContent, ExpandedContent, PeekContent, useAccent } from "./components/Contents";
 import { BoltIcon, NoteIcon } from "./components/icons";
+import { TabBar } from "./components/TabBar";
 import {
   useBackendSync,
   useClockTicker,
   useHoverIntent,
+  usePanelDemand,
   useTransientExpiry,
   useVisualizerDemand,
+  useWeather,
 } from "./hooks";
 import { useIsland } from "./store";
 
@@ -23,6 +26,8 @@ export function Island() {
   useHoverIntent();
   useTransientExpiry();
   useVisualizerDemand();
+  usePanelDemand();
+  useWeather();
 
   const mode = useIsland((s) => s.mode);
   const media = useIsland((s) => s.media);
@@ -30,6 +35,7 @@ export function Island() {
   const transient = useIsland((s) => s.transient);
   const now = useIsland((s) => s.now);
   const backend = useIsland((s) => s.backend);
+  const tab = useIsland((s) => s.tab);
   const { cornerRadius, reduceMotion } = useIsland((s) => s.settings.appearance);
   const { setHovered, setMode } = useIsland.getState();
 
@@ -41,7 +47,7 @@ export function Island() {
   );
   const primary = activities[0]?.kind ?? null;
   const bubbles = activities.slice(1, 3);
-  const size = pillSize(mode, primary, cornerRadius);
+  const size = pillSize(mode, primary, cornerRadius, tab);
 
   const spring: Transition = reduceMotion
     ? { duration: 0 }
@@ -69,8 +75,9 @@ export function Island() {
     requestAnimationFrame(() => requestAnimationFrame(() => void backend.ready()));
   }, [backend]);
 
-  const contentKey = `${mode}:${primary ?? "idle"}`;
-  const Content = mode === "expanded" ? ExpandedContent : mode === "peek" ? PeekContent : CompactContent;
+  const expanded = mode === "expanded";
+  const contentKey = expanded ? `expanded:${tab}:${tab === "home" ? (primary ?? "idle") : ""}` : `${mode}:${primary ?? "idle"}`;
+  const contentTop = expanded ? TAB_BAR_H : 0;
 
   return (
     <div className="relative select-none" style={{ width: CANVAS_W, height: CANVAS_H }}>
@@ -90,19 +97,39 @@ export function Island() {
         transition={spring}
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
-        onClick={() => setMode(mode === "expanded" ? "peek" : "expanded")}
+        onClick={() => mode !== "expanded" && setMode("expanded")}
       >
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              key="tabs"
+              className="absolute inset-x-0 top-0 z-10"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6, transition: { duration: 0.1 } }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.22, delay: 0.06 }}
+            >
+              <TabBar />
+            </motion.div>
+          )}
+        </AnimatePresence>
         <AnimatePresence initial={false} mode="popLayout">
           <motion.div
             key={contentKey}
-            className="absolute top-0 left-1/2"
-            style={{ width: size.w, height: size.h, x: "-50%" }}
+            className="absolute left-1/2"
+            style={{ top: contentTop, width: size.w, height: size.h - contentTop, x: "-50%" }}
             initial={{ opacity: 0, scale: 0.94, filter: "blur(6px)" }}
             animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, scale: 0.94, filter: "blur(6px)" }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
           >
-            <Content primary={primary} />
+            {expanded ? (
+              <ExpandedContent primary={primary} tab={tab} />
+            ) : mode === "peek" ? (
+              <PeekContent primary={primary} />
+            ) : (
+              <CompactContent primary={primary} />
+            )}
           </motion.div>
         </AnimatePresence>
       </motion.div>

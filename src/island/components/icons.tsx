@@ -36,3 +36,123 @@ export function BatteryGlyph({ percent, charging, saver, width = 26 }: { percent
     </svg>
   );
 }
+
+/* ── stroke icons (24px grid, 1.8 stroke) ── */
+const stroke = ({ size = 16, ...p }: P) => ({
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.9,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  ...p,
+});
+
+export const HomeIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z" /></svg>
+);
+export const SlidersIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="M5 6h9M18 6h1M5 12h3M12 12h7M5 18h11M20 18h-1" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+);
+export const ChartIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="M4 19h16M7 15l3.5-4 3 2.5L19 7" /></svg>
+);
+export const SunIcon = (p: P) => (
+  <svg {...stroke(p)}><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" /></svg>
+);
+export const MoonIcon = (p: P) => (
+  <svg {...base(p)}><path d="M20.3 14.6A8.6 8.6 0 0 1 9.4 3.7a.6.6 0 0 0-.8-.7 9.4 9.4 0 1 0 12.4 12.4.6.6 0 0 0-.7-.8Z" /></svg>
+);
+export const SpeakerIcon = ({ muted, level = 1, ...p }: P & { muted?: boolean; level?: number }) => (
+  <svg {...stroke(p)}>
+    <path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="currentColor" stroke="none" />
+    {muted ? (
+      <path d="m16 9.5 5 5M21 9.5l-5 5" />
+    ) : (
+      <>
+        {level > 0.02 && <path d="M15.5 9.5a3.5 3.5 0 0 1 0 5" />}
+        {level > 0.5 && <path d="M18 7a7 7 0 0 1 0 10" />}
+      </>
+    )}
+  </svg>
+);
+export const WifiIcon = ({ bars = 5, off, ...p }: P & { bars?: number; off?: boolean }) => {
+  const dim = (n: number) => (off || bars < n ? 0.28 : 1);
+  return (
+    <svg {...stroke(p)}>
+      <path d="M2.5 9a14 14 0 0 1 19 0" opacity={dim(5)} />
+      <path d="M5.5 12.3a9.6 9.6 0 0 1 13 0" opacity={dim(3)} />
+      <path d="M8.6 15.5a5 5 0 0 1 6.8 0" opacity={dim(2)} />
+      <circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none" opacity={dim(1)} />
+      {off && <path d="m4 4 16 16" />}
+    </svg>
+  );
+};
+export const EthernetIcon = (p: P) => (
+  <svg {...stroke(p)}><rect x="4" y="4" width="16" height="12" rx="2" /><path d="M8 20h8M12 16v4M8 8v3M12 8v3M16 8v3" /></svg>
+);
+export const BluetoothIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="m7 7.5 10 9-5 4.5V3l5 4.5-10 9" /></svg>
+);
+export const ChevronIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="m9 6 6 6-6 6" /></svg>
+);
+export const PinIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.3" /></svg>
+);
+export const SearchIcon = (p: P) => (
+  <svg {...stroke(p)}><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg>
+);
+export const GaugeIcon = (p: P) => (
+  <svg {...stroke(p)}><path d="M4.5 17a8.5 8.5 0 1 1 15 0" /><path d="m12 13 3.5-4" /></svg>
+);
+
+/** Filled, coloured weather glyphs. */
+export function WeatherGlyph({ kind, day = true, size = 24 }: { kind: import("@/lib/weather").WeatherKind; day?: boolean; size?: number }) {
+  const sun = <circle cx="9.5" cy="9.5" r="4.6" fill="#FFC53D" />;
+  const moon = <path d="M14 13.6A5.6 5.6 0 0 1 7.2 4.7a5.6 5.6 0 1 0 6.8 8.9Z" fill="#C9D3FF" />;
+  const cloud = (fill: string) => (
+    <path d="M7.6 20h9.2a4.2 4.2 0 0 0 .5-8.4 5.4 5.4 0 0 0-10.3 1.5A3.5 3.5 0 0 0 7.6 20Z" fill={fill} />
+  );
+  const drops = (n: number, color = "#5AB8FF") =>
+    Array.from({ length: n }, (_, i) => <path key={i} d={`M${8.5 + i * 3.5} 21.4l-1 2`} stroke={color} strokeWidth="1.8" strokeLinecap="round" />);
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      {kind === "clear" && (day ? <circle cx="12" cy="12" r="6" fill="#FFC53D" /> : <path d="M17 16.4A7.2 7.2 0 0 1 8.4 4.9a7.2 7.2 0 1 0 8.6 11.5Z" fill="#C9D3FF" />)}
+      {kind === "partly" && (
+        <>
+          {day ? sun : moon}
+          {cloud("#E8ECF4")}
+        </>
+      )}
+      {kind === "cloudy" && cloud("#C7CEDA")}
+      {kind === "fog" && <path d="M4 9h16M6 13h12M4 17h16" stroke="#C7CEDA" strokeWidth="2" strokeLinecap="round" />}
+      {kind === "drizzle" && (
+        <g transform="translate(0 -3)">
+          {cloud("#C7CEDA")}
+          {drops(2)}
+        </g>
+      )}
+      {kind === "rain" && (
+        <g transform="translate(0 -3)">
+          {cloud("#AEB8C8")}
+          {drops(3)}
+        </g>
+      )}
+      {kind === "snow" && (
+        <g transform="translate(0 -3)">
+          {cloud("#DDE3EC")}
+          {drops(3, "#FFFFFF")}
+        </g>
+      )}
+      {kind === "storm" && (
+        <g transform="translate(0 -3)">
+          {cloud("#8F9AAD")}
+          <path d="m12.5 19-2 3.4h2.4L11.6 26" stroke="#FFC53D" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      )}
+    </svg>
+  );
+}

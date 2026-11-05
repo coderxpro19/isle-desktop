@@ -6,6 +6,10 @@
 │ media/      GSMTC session thread (win.rs) · controls · artwork            │
 │ audio/      WASAPI loopback (cpal) → analyzer.rs (FFT, 12 bands)          │
 │ power.rs    battery/AC poll, emits on change only                         │
+│ controls/   volume (Core Audio) · brightness (WMI/DDC) · radios · network │
+│ stats.rs    sysinfo + PDH GPU, 1 Hz only while the System tab is open     │
+│ fullscreen.rs  hides islands over full-screen apps                        │
+│ system.rs   open Settings pages (allow-list) · device location            │
 │ settings.rs JSON store in %APPDATA%\app.isle.desktop                      │
 │ tray.rs     tray icon + menu                                              │
 └────────────┬─────────────────────────────────────────────▲───────────────┘
@@ -64,6 +68,8 @@ controls, so design iteration needs only `npm run dev`.
 | `media://spectrum` | `number[12]` (0-255) |
 | `island://hover` | `boolean` (window-scoped) |
 | `settings://changed` | `Settings` |
+| `controls://changed` | `ControlsState` |
+| `stats://tick` | `StatsTick` (1 Hz while active) |
 
 | Command | Purpose |
 |---|---|
@@ -73,3 +79,7 @@ controls, so design iteration needs only `npm run dev`.
 | `island_set_hit_rects({ rects })` | interactive regions for click-through |
 | `island_ready` | show the window after first paint |
 | `settings_set({ settings })` | persist + broadcast |
+| `controls_state`, `controls_set({ action })` | read / change volume, mute, brightness, Wi-Fi, Bluetooth |
+| `controls_set_active`, `stats_set_active` | demand flags: poll/sample only while visible |
+| `open_settings({ page })` | open an allow-listed Windows Settings page or Task Manager |
+| `location_current` | Windows location services → lat/lon |

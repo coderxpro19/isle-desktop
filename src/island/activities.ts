@@ -1,4 +1,4 @@
-import type { IslandState, Mode, Transient } from "./store";
+import type { IslandState, Mode, Tab, Transient } from "./store";
 import { PAUSED_LINGER_MS } from "./store";
 
 /**
@@ -31,10 +31,10 @@ export interface Size {
 }
 
 /** Target pill geometry for a given state. Hit-testing uses these targets too. */
-export function pillSize(mode: Mode, primary: ActivityKind | null, radius: number): Size {
+export function pillSize(mode: Mode, primary: ActivityKind | null, radius: number, tab: Tab = "home"): Size {
   if (primary === "charging" || primary === "lowBattery") {
     // Transients are wide and short in compact, or take over the peek.
-    return mode === "expanded" ? expanded(primary, radius) : { w: 320, h: 36, r: 18 };
+    return mode === "expanded" ? expanded(primary, radius, tab) : { w: 320, h: 36, r: 18 };
   }
   switch (mode) {
     case "compact":
@@ -42,12 +42,25 @@ export function pillSize(mode: Mode, primary: ActivityKind | null, radius: numbe
     case "peek":
       return primary === "music" ? { w: 372, h: 58, r: 29 } : { w: 300, h: 46, r: 23 };
     case "expanded":
-      return expanded(primary, radius);
+      return expanded(primary, radius, tab);
   }
 }
 
-function expanded(primary: ActivityKind | null, radius: number): Size {
-  return primary === "music" ? { w: 440, h: 212, r: radius + 14 } : { w: 400, h: 156, r: radius + 10 };
+/** Height of the tab bar at the top of the expanded island. */
+export const TAB_BAR_H = 34;
+
+function expanded(primary: ActivityKind | null, radius: number, tab: Tab): Size {
+  const r = radius + 14;
+  switch (tab) {
+    case "controls":
+      return { w: 440, h: TAB_BAR_H + 228, r };
+    case "weather":
+      return { w: 440, h: TAB_BAR_H + 204, r };
+    case "stats":
+      return { w: 440, h: TAB_BAR_H + 236, r };
+    case "home":
+      return primary === "music" ? { w: 440, h: TAB_BAR_H + 206, r } : { w: 420, h: TAB_BAR_H + 160, r };
+  }
 }
 
 export const BUBBLE = 34;

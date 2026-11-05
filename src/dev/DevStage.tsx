@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { CANVAS_H, CANVAS_W, Island } from "@/island/Island";
-import { useIsland, type Mode } from "@/island/store";
+import { useIsland, type Mode, type Tab } from "@/island/store";
 
 /**
  * Browser-only harness (`npm run dev`, open http://localhost:1420): renders the
@@ -11,6 +11,7 @@ export function DevStage() {
   const mode = useIsland((s) => s.mode);
   const media = useIsland((s) => s.media);
   const battery = useIsland((s) => s.battery);
+  const tab = useIsland((s) => s.tab);
   const [wallpaper, setWallpaper] = useState(0);
 
   // Allow `?mode=expanded&media=paused&charging=1` for scripted screenshots.
@@ -21,6 +22,12 @@ export function DevStage() {
       if (m === "none" || m === "paused" || m === "playing") window.__isleMock?.setMedia(m);
       if (q.get("charging")) window.__isleMock?.setBattery({ charging: true, onAc: true });
       if (q.get("wall")) setWallpaper(Number(q.get("wall")));
+      if (q.get("weather")) {
+        useIsland.getState().updateSettings((s) => ({ ...s, weather: { ...s.weather, location: { name: "Lagos, Nigeria", latitude: 6.455, longitude: 3.394 } } }));
+      }
+      if (q.get("focus")) useIsland.getState().updateSettings((s) => ({ ...s, island: { ...s.island, focusMode: true } }));
+      const tb = q.get("tab") as Tab | null;
+      if (tb) useIsland.setState({ tab: tb });
       const md = q.get("mode") as Mode | null;
       if (md) useIsland.setState({ mode: md, hovered: md !== "compact" });
     }, 150);
@@ -45,6 +52,13 @@ export function DevStage() {
           {(["compact", "peek", "expanded"] as const).map((m) => (
             <Btn key={m} on={mode === m} onClick={() => useIsland.setState({ mode: m, hovered: m !== "compact" })}>
               {m}
+            </Btn>
+          ))}
+        </Group>
+        <Group label="Tab">
+          {(["home", "controls", "weather", "stats"] as const).map((t) => (
+            <Btn key={t} on={tab === t && mode === "expanded"} onClick={() => useIsland.setState({ mode: "expanded", hovered: true, tab: t })}>
+              {t}
             </Btn>
           ))}
         </Group>

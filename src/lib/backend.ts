@@ -1,4 +1,7 @@
-import type { Artwork, BatteryState, EventMap, MediaAction, MediaState, Rect, Settings } from "./types";
+import type {
+  Artwork, BatteryState, ControlAction, ControlsState, EventMap, MediaAction, MediaState, Rect, Settings, SettingsPage,
+  Weather, WeatherLocation,
+} from "./types";
 
 /**
  * Everything the UI needs from the native side. Two implementations:
@@ -16,6 +19,17 @@ export interface Backend {
   ready(): Promise<void>;
   getSettings(): Promise<Settings>;
   setSettings(s: Settings): Promise<void>;
+  controlsState(): Promise<ControlsState>;
+  controlsSet(action: ControlAction): Promise<void>;
+  /** Tell the backend the controls are visible (enables brightness polling). */
+  setControlsActive(active: boolean): Promise<void>;
+  /** Stats are only sampled while this is on. */
+  setStatsActive(active: boolean): Promise<void>;
+  openSettings(page: SettingsPage): Promise<void>;
+  /** Device location via Windows location services. */
+  locationCurrent(): Promise<{ latitude: number; longitude: number }>;
+  weather(loc: WeatherLocation, fahrenheit: boolean): Promise<Weather>;
+  geocode(query: string): Promise<WeatherLocation[]>;
   on<K extends keyof EventMap>(event: K, cb: (payload: EventMap[K]) => void): () => void;
 }
 

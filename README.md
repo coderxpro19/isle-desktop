@@ -2,8 +2,8 @@
 
 A Dynamic Island and dock for Windows 10/11. Built with Tauri 2 (Rust) and React.
 
-> **Status:** Phase 1 — the island core (time, battery, music with a live visualiser).
-> The dock, command centre and everything else are on the [roadmap](docs/ROADMAP.md).
+> **Status:** Phase 2 — island core + command centre, weather and system stats.
+> The dock and everything else are on the [roadmap](docs/ROADMAP.md).
 
 ## What works today
 
@@ -14,6 +14,9 @@ A Dynamic Island and dock for Windows 10/11. Built with Tauri 2 (Rust) and React
 - **Audio-reactive visualiser** driven by what your speakers are actually playing.
 - **Live activities**: charging and low-battery alerts take the pill briefly while music
   moves to a bubble beside it.
+- **Tabs when expanded:** Home · Controls (volume, brightness, Wi-Fi, Bluetooth, Focus) ·
+  Weather · System (CPU, RAM, GPU, network, disks).
+- Hides itself over full-screen apps, games and videos.
 - Click-through everywhere outside the island, so it never blocks your apps.
 - Tray icon with *Reload island* and *Quit*.
 

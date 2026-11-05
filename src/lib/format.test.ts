@@ -56,3 +56,45 @@ describe("activities", () => {
     expect(c.h < p.h && p.h < e.h).toBe(true);
   });
 });
+
+import { formatBytes, formatUptime } from "./format";
+import { describe as describeWeather, parseForecast } from "./weather";
+
+describe("bytes", () => {
+  it("formats sizes", () => {
+    expect(formatBytes(512)).toBe("512 B");
+    expect(formatBytes(1536)).toBe("1.5 KB");
+    expect(formatBytes(16 * 1024 ** 3)).toBe("16.0 GB");
+    expect(formatBytes(476 * 1024 ** 3)).toBe("476 GB");
+  });
+  it("formats uptime", () => {
+    expect(formatUptime(59)).toBe("0m");
+    expect(formatUptime(3 * 3600 + 5 * 60)).toBe("3h 5m");
+    expect(formatUptime(2 * 86400 + 7200)).toBe("2d 2h");
+  });
+});
+
+describe("weather", () => {
+  it("maps WMO codes", () => {
+    expect(describeWeather(0).kind).toBe("clear");
+    expect(describeWeather(2).kind).toBe("partly");
+    expect(describeWeather(63).kind).toBe("rain");
+    expect(describeWeather(81).label).toBe("Showers");
+    expect(describeWeather(75).kind).toBe("snow");
+    expect(describeWeather(95).kind).toBe("storm");
+  });
+  it("parses the forecast and starts hourly after now", () => {
+    const hours = Array.from({ length: 48 }, (_, i) => `2026-11-0${5 + Math.floor(i / 24)}T${String(i % 24).padStart(2, "0")}:00`);
+    const w = parseForecast(
+      {
+        current: { time: "2026-11-05T14:15", temperature_2m: 29.4, apparent_temperature: 33, weather_code: 2, is_day: 1 },
+        hourly: { time: hours, temperature_2m: hours.map((_, i) => i), weather_code: hours.map(() => 1), is_day: hours.map(() => 1) },
+        daily: { temperature_2m_max: [31, 30], temperature_2m_min: [24, 23], precipitation_probability_max: [40, 10] },
+      },
+      123,
+    );
+    expect(w.hourly[0]!.time).toBe("2026-11-05T15:00");
+    expect(w.hourly).toHaveLength(6);
+    expect(w).toMatchObject({ temp: 29.4, high: 31, low: 24, precipChance: 40, isDay: true, fetchedAt: 123 });
+  });
+});

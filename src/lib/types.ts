@@ -54,12 +54,26 @@ export interface Settings {
     expandOnHover: boolean;
     visualizer: boolean;
     chargingActivity: boolean;
+    hideInFullscreen: boolean;
+    focusMode: boolean;
   };
   appearance: {
     accent: string;
     cornerRadius: number;
     reduceMotion: boolean;
   };
+  weather: WeatherSettings;
+}
+
+export interface WeatherLocation {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface WeatherSettings {
+  location: WeatherLocation | null;
+  fahrenheit: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -72,9 +86,54 @@ export const DEFAULT_SETTINGS: Settings = {
     expandOnHover: false,
     visualizer: true,
     chargingActivity: true,
+    hideInFullscreen: true,
+    focusMode: false,
   },
   appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false },
+  weather: { location: null, fahrenheit: false },
 };
+
+export interface ControlsState {
+  volume: { level: number; muted: boolean; device: string } | null;
+  brightness: { level: number; source: "internal" | "external" } | null;
+  wifi: { on: boolean } | null;
+  bluetooth: { on: boolean } | null;
+  network: { kind: "wifi" | "ethernet" | "cellular" | "none"; name: string | null; signal: number | null; online: boolean };
+}
+
+export type ControlAction =
+  | { type: "setVolume"; level: number }
+  | { type: "setMute"; muted: boolean }
+  | { type: "setBrightness"; level: number }
+  | { type: "setWifi"; on: boolean }
+  | { type: "setBluetooth"; on: boolean };
+
+export interface StatsTick {
+  cpu: number;
+  cores: number;
+  memUsed: number;
+  memTotal: number;
+  gpu: number | null;
+  netRx: number;
+  netTx: number;
+  disks: { mount: string; used: number; total: number }[];
+  uptimeSecs: number;
+}
+
+export type SettingsPage =
+  | "sound" | "display" | "wifi" | "network" | "bluetooth" | "focus" | "notifications" | "battery" | "location" | "taskmgr";
+
+export interface Weather {
+  fetchedAt: number;
+  temp: number;
+  feelsLike: number;
+  code: number;
+  isDay: boolean;
+  high: number;
+  low: number;
+  precipChance: number | null;
+  hourly: { time: string; temp: number; code: number; isDay: boolean }[];
+}
 
 /** Spectrum frame: 12 bands, 0-255. */
 export type Spectrum = number[];
@@ -86,4 +145,6 @@ export interface EventMap {
   "media://spectrum": Spectrum;
   "island://hover": boolean;
   "settings://changed": Settings;
+  "controls://changed": ControlsState;
+  "stats://tick": StatsTick;
 }

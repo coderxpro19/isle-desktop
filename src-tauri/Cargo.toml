@@ -1,10 +1,10 @@
 [package]
 name = "isle"
-version = "0.1.0"
+version = "0.2.0"
 description = "Isle — a Dynamic Island and dock for Windows"
 authors = ["coderxpro19"]
 edition = "2021"
-rust-version = "1.80"
+rust-version = "1.85"
 license = "MIT"
 
 [lib]
@@ -27,16 +27,37 @@ rustfft = "6"
 # Audio capture for the visualiser. On Windows (WASAPI) an *input* stream on the
 # default *output* device is a loopback capture of whatever is playing.
 cpal = "0.16"
+sysinfo = { version = "0.40", default-features = false, features = ["system", "disk", "network"] }
 
 [target.'cfg(windows)'.dependencies]
+# Needed by the `#[implement]` macro for COM callbacks.
+windows-core = "0.62"
 windows = { version = "0.62", features = [
+  "Devices_Geolocation",
+  "Devices_Radios",
   "Foundation",
   "Foundation_Collections",
   "Media_Control",
+  "Networking_Connectivity",
   "Storage_Streams",
+  "Win32_Devices_Display",
+  "Win32_Devices_FunctionDiscovery",
   "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Ole",
+  "Win32_System_Performance",
   "Win32_System_Power",
+  "Win32_System_Rpc",
+  "Win32_System_Variant",
+  "Win32_System_Wmi",
   "Win32_System_WinRT",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 [features]

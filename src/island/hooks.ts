@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getBackend } from "@/lib/backend";
 import { extractAccent } from "@/lib/color";
 import { spectrumBus } from "@/lib/spectrum";
+import { WEATHER_TTL_MS } from "@/lib/weather";
 import type { MediaState } from "@/lib/types";
 import { useIsland } from "./store";
 
@@ -32,16 +33,19 @@ export function useBackendSync() {
         // The native hit tester sees the cursor even while the window is
         // click-through, so it's authoritative for entering/leaving the island.
         backend.on("island://hover", (inside) => useIsland.getState().setHovered(inside)),
+        backend.on("controls://changed", (controls) => useIsland.setState({ controls })),
+        backend.on("stats://tick", (t) => useIsland.getState().pushStats(t)),
       );
 
-      const [settings, battery, media, art] = await Promise.all([
+      const [settings, battery, media, art, controls] = await Promise.all([
         backend.getSettings(),
         backend.batteryState(),
         backend.mediaState(),
         backend.mediaArtwork(),
+        backend.controlsState(),
       ]);
       if (disposed) return;
-      useIsland.setState({ settings });
+      useIsland.setState({ settings, controls });
       st.applyBattery(battery);
       st.applyMedia(media);
       if (art) addArtwork(art.key, art.dataUrl);
@@ -125,7 +129,8 @@ export function useTransientExpiry() {
  * brushing past the island on the way to a tab doesn't trigger it.
  */
 export function useHoverIntent() {
-  const hovered = useIsland((s) => s.hovered);
+  const pinned = useIsland((s) => s.pins > 0);
+  const hovered = useIsland((s) => s.hovered) || pinned;
   const mode = useIsland((s) => s.mode);
   const expandOnHover = useIsland((s) => s.settings.island.expandOnHover);
   useEffect(() => {
@@ -145,4 +150,40 @@ export function useHoverIntent() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+}
+
+/** Brightness polling and stats sampling run only while their panel is open. */
+export function usePanelDemand() {
+  const backend = useIsland((s) => s.backend);
+  const open = useIsland((s) => (s.mode === "expanded" ? s.tab : null));
+  useEffect(() => {
+    if (!backend) return;
+    void backend.setControlsActive(open === "controls");
+    void backend.setStatsActive(open === "stats");
+  }, [backend, open]);
+}
+
+/** Fetch weather when a weather view is visible and the cached copy is stale. */
+export function useWeather() {
+  const backend = useIsland((s) => s.backend);
+  const { location, fahrenheit } = useIsland((s) => s.settings.weather);
+  const visible = useIsland((s) => s.mode === "expanded" && (s.tab === "weather" || (s.tab === "home" && !s.media)));
+  const fetchedAt = useIsland((s) => s.weather?.fetchedAt ?? 0);
+  const key = location ? `${location.latitude},${location.longitude},${fahrenheit}` : null;
+  const lastKey = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!backend || !key || !location || !visible) return;
+    const stale = Date.now() - fetchedAt > WEATHER_TTL_MS || lastKey.current !== key;
+    if (!stale) return;
+    lastKey.current = key;
+    let cancelled = false;
+    backend
+      .weather(location, fahrenheit)
+      .then((weather) => !cancelled && useIsland.setState({ weather, weatherError: null }))
+      .catch((e: unknown) => !cancelled && useIsland.setState({ weatherError: e instanceof Error ? e.message : String(e) }));
+    return () => {
+      cancelled = true;
+    };
+  }, [backend, key, location, fahrenheit, visible, fetchedAt]);
 }

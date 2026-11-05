@@ -6,15 +6,23 @@
 //! - `media`    now-playing via Windows media sessions + controls
 //! - `audio`    loopback capture -> spectrum bands for the visualiser
 //! - `settings` persisted user settings
+//! - `controls` volume, brightness, Wi-Fi, Bluetooth, network
+//! - `stats`    CPU / RAM / GPU / network / disk sampling
+//! - `fullscreen` hide islands over full-screen apps
+//! - `system`   open Settings pages, device location
 //! - `tray`     tray icon + menu
 //! - `events`   names of every event emitted to the UI
 
 mod audio;
+mod controls;
 mod events;
+mod fullscreen;
 mod island;
 mod media;
 mod power;
 mod settings;
+mod stats;
+mod system;
 mod tray;
 mod util;
 
@@ -45,10 +53,13 @@ pub fn run() {
             app.manage(power::PowerState::default());
             app.manage(media::MediaService::spawn(handle.clone()));
             app.manage(audio::Visualizer::spawn(handle.clone()));
+            app.manage(controls::ControlsService::spawn(handle.clone()));
+            app.manage(stats::StatsService::spawn(handle.clone()));
 
             power::spawn_monitor(handle.clone());
             island::create_windows(&handle)?;
             island::spawn_hit_tester(handle.clone());
+            fullscreen::spawn(handle.clone());
             tray::create(&handle)?;
             Ok(())
         })
@@ -62,6 +73,12 @@ pub fn run() {
             audio::visualizer_set_active,
             settings::settings_get,
             settings::settings_set,
+            controls::controls_state,
+            controls::controls_set,
+            controls::controls_set_active,
+            stats::stats_set_active,
+            system::open_settings,
+            system::location_current,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Isle");

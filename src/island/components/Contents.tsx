@@ -4,7 +4,12 @@ import type { BatteryState, MediaState } from "@/lib/types";
 import type { ActivityKind } from "../activities";
 import { usePlaybackPosition } from "../hooks";
 import { useIsland } from "../store";
-import { BatteryGlyph, BoltIcon, NextIcon, NoteIcon, PauseIcon, PlayIcon, PrevIcon } from "./icons";
+import { describe } from "@/lib/weather";
+import type { Tab } from "../store";
+import { ControlsPanel } from "./ControlsPanel";
+import { BatteryGlyph, BoltIcon, MoonIcon, NextIcon, NoteIcon, PauseIcon, PlayIcon, PrevIcon, WeatherGlyph } from "./icons";
+import { StatsPanel } from "./StatsPanel";
+import { WeatherPanel } from "./WeatherPanel";
 import { Marquee } from "./Marquee";
 import { SeekBar } from "./SeekBar";
 import { Visualizer } from "./Visualizer";
@@ -96,9 +101,17 @@ export function CompactContent({ primary }: { primary: ActivityKind | null }) {
   return (
     <Row>
       <Clock className="text-[13px] font-semibold text-white/95" />
-      <Battery showPercent={pct} />
+      <span className="flex items-center gap-2">
+        <FocusDot />
+        <Battery showPercent={pct} />
+      </span>
     </Row>
   );
+}
+
+function FocusDot() {
+  const on = useIsland((s) => s.settings.island.focusMode);
+  return on ? <MoonIcon size={12} className="text-[#a597ff]" aria-label="Focus on" /> : null;
 }
 
 function Row({ children }: { children: ReactNode }) {
@@ -138,16 +151,24 @@ export function PeekContent({ primary }: { primary: ActivityKind | null }) {
 
 /* ───────────────────────────── expanded ───────────────────────────── */
 
-export function ExpandedContent({ primary }: { primary: ActivityKind | null }) {
-  if (primary === "music") return <MusicPanel />;
-  return <OverviewPanel />;
+export function ExpandedContent({ primary, tab }: { primary: ActivityKind | null; tab: Tab }) {
+  switch (tab) {
+    case "controls":
+      return <ControlsPanel />;
+    case "weather":
+      return <WeatherPanel />;
+    case "stats":
+      return <StatsPanel />;
+    case "home":
+      return primary === "music" ? <MusicPanel /> : <OverviewPanel />;
+  }
 }
 
 function OverviewPanel() {
   const now = useIsland((s) => s.now);
   const b = useIsland((s) => s.battery);
   return (
-    <div className="flex h-full flex-col justify-between p-5">
+    <div className="flex h-full flex-col justify-between px-5 pt-1 pb-4">
       <div className="flex items-start justify-between">
         <div>
           <Clock className="block text-[40px] leading-none font-semibold tracking-tight text-white" period />
@@ -157,11 +178,35 @@ function OverviewPanel() {
         </div>
         {b?.hasBattery && <BatteryCard b={b} />}
       </div>
-      <div className="flex items-center gap-2 text-[12px] text-white/40">
-        <NoteIcon size={13} />
-        Nothing playing
+      <div className="flex items-center justify-between text-[12px] text-white/40">
+        <span className="flex items-center gap-2">
+          <NoteIcon size={13} />
+          Nothing playing
+        </span>
+        <WeatherMini />
       </div>
     </div>
+  );
+}
+
+function WeatherMini() {
+  const w = useIsland((s) => s.weather);
+  const hasLoc = useIsland((s) => !!s.settings.weather.location);
+  const setTab = useIsland((s) => s.setTab);
+  if (!hasLoc || !w) {
+    return (
+      <button type="button" className="rounded-md hover:text-white" onClick={(e) => (e.stopPropagation(), setTab("weather"))}>
+        {hasLoc ? "…" : "Set up weather"}
+      </button>
+    );
+  }
+  const d = describe(w.code);
+  return (
+    <button type="button" className="flex items-center gap-1.5 text-white/75 hover:text-white" onClick={(e) => (e.stopPropagation(), setTab("weather"))}>
+      <WeatherGlyph kind={d.kind} day={w.isDay} size={18} />
+      <span className="font-semibold tabular-nums">{Math.round(w.temp)}°</span>
+      <span className="text-white/45">{d.label}</span>
+    </button>
   );
 }
 
@@ -195,7 +240,7 @@ function MusicPanel() {
   const control = (a: Parameters<NonNullable<typeof backend>["mediaControl"]>[0]) => void backend?.mediaControl(a);
 
   return (
-    <div className="flex h-full flex-col justify-between px-5 pt-5 pb-4">
+    <div className="flex h-full flex-col justify-between px-5 pt-1 pb-4">
       <div className="flex items-center gap-4">
         <Artwork size={66} radius={14} className="shadow-[0_6px_20px_rgba(0,0,0,.45)]" />
         <div className="min-w-0 flex-1 leading-snug">

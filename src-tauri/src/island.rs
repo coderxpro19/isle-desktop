@@ -57,6 +57,7 @@ pub fn island_set_hit_rects(
 /// Called by the UI once the first frame is painted, so the window never flashes.
 #[tauri::command]
 pub fn island_ready(window: tauri::Window) -> Result<(), String> {
+    crate::fullscreen::ISLAND_READY.store(true, std::sync::atomic::Ordering::Relaxed);
     window.show().map_err(|e| e.to_string())?;
     // Start fully click-through; the hit tester takes over from here.
     window

@@ -28,3 +28,27 @@ export function formatMinutes(min: number): string {
   const m = min % 60;
   return h ? `${h}h ${m}m` : `${m}m`;
 }
+
+const UNITS = ["B", "KB", "MB", "GB", "TB"];
+
+/** 1.5 GB, 512 MB — binary multiples, labelled like Windows does. */
+export function formatBytes(n: number): string {
+  let v = Math.max(0, n);
+  let u = 0;
+  while (v >= 1024 && u < UNITS.length - 1) {
+    v /= 1024;
+    u++;
+  }
+  return `${v >= 100 || u === 0 ? Math.round(v) : v.toFixed(1)} ${UNITS[u]}`;
+}
+
+export function formatRate(bytesPerSec: number): string {
+  return `${formatBytes(bytesPerSec)}/s`;
+}
+
+export function formatUptime(secs: number): string {
+  const d = Math.floor(secs / 86400);
+  const h = Math.floor((secs % 86400) / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+}

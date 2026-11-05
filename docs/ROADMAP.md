@@ -22,17 +22,19 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - ✅ Audio-reactive visualiser (WASAPI loopback → FFT → 12 bands), capture only while needed
 - ✅ Live-activity system with secondary bubbles; charging + low-battery alerts as first activities
 
-## Phase 2 — Command centre + system stats ⬜
-- Volume (Core Audio endpoint), per-app volume, output device switcher
-- Brightness (WMI for laptop panels, DDC/CI for external monitors)
-- Wi-Fi / Bluetooth / airplane toggles (WinRT `Radio` APIs), network name
-- Focus mode (Windows Focus Assist / Do Not Disturb)
-- System tray icons inside the island
-- CPU / RAM / GPU / network / disk (sampled in Rust, 1 Hz only while the panel is open)
-- Weather (Open-Meteo, no API key) with location from settings
-- Hide island automatically over full-screen apps/games
+## Phase 2 — Command centre + system stats ✅
+- ✅ Expanded island gets tabs: Home · Controls · Weather · System
+- ✅ Volume + mute (Core Audio, live via endpoint callbacks), follows default-device changes
+- ✅ Brightness: laptop panels via WMI, external monitors via DDC/CI
+- ✅ Wi-Fi / Bluetooth toggles (WinRT Radios), network name + signal, ethernet/cellular aware
+- ✅ Focus mode (Isle-level: silences island alerts; shortcut to Windows Focus settings)
+- ✅ CPU / RAM / GPU (PDH "GPU Engine") / network / disk with 60 s sparklines, sampled only while visible
+- ✅ Weather (Open-Meteo, no key): current, high/low, rain chance, 6-hour strip; city search or device location; °C/°F
+- ✅ Island hides over full-screen apps, games, videos and presentations
+- ↪ System tray icons moved to Phase 3 (they live naturally in the dock)
 
 ## Phase 3 — Dock + taskbar replacement ⬜
+- System tray icons (in the dock, and accessible from the island)
 - AppBar registration so maximised windows respect the dock
 - Hide `Shell_TrayWnd` (+ secondary taskbars) with a watchdog process and panic hook that
   **always** restore the taskbar on quit, crash, or kill

@@ -17,6 +17,7 @@ pub struct Settings {
     pub version: u32,
     pub island: IslandSettings,
     pub appearance: Appearance,
+    pub weather: WeatherSettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -36,6 +37,25 @@ pub struct IslandSettings {
     pub visualizer: bool,
     /// Briefly show a live activity when the charger is plugged in.
     pub charging_activity: bool,
+    /// Hide the island while a full-screen app, game or video is in front.
+    pub hide_in_fullscreen: bool,
+    /// Isle focus mode: suppresses alerts (and notifications, from Phase 4).
+    pub focus_mode: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct WeatherSettings {
+    pub location: Option<WeatherLocation>,
+    pub fahrenheit: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WeatherLocation {
+    pub name: String,
+    pub latitude: f64,
+    pub longitude: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -53,6 +73,7 @@ impl Default for Settings {
             version: 1,
             island: Default::default(),
             appearance: Default::default(),
+            weather: Default::default(),
         }
     }
 }
@@ -67,6 +88,8 @@ impl Default for IslandSettings {
             expand_on_hover: false,
             visualizer: true,
             charging_activity: true,
+            hide_in_fullscreen: true,
+            focus_mode: false,
         }
     }
 }
