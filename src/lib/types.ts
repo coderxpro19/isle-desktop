@@ -128,6 +128,15 @@ export interface DockApp {
   windows: DockWindow[];
 }
 
+export interface TrayIcon {
+  id: string;
+  tip: string;
+  /** PNG data URL. */
+  icon: string | null;
+}
+
+export type TrayButton = "left" | "right" | "double";
+
 export interface LauncherApp {
   id: string;
   name: string;
@@ -242,5 +251,6 @@ export interface EventMap {
   "updater://check": null;
   "dock://apps": DockApp[];
   "dock://overlap": boolean;
+  "tray://icons": TrayIcon[];
   "launcher://opened": null;
 }

@@ -59,8 +59,10 @@ pub fn run_watchdog_if_requested() {
     };
     if let Some(pid) = args.get(i + 1).and_then(|p| p.parse::<u32>().ok()) {
         platform::wait_for_exit(pid);
-        // Isle is gone. If it left the taskbar hidden, bring it back.
+        // Isle is gone. If it left the taskbar hidden, bring it back, and send
+        // tray icons back to Explorer.
         restore_taskbar_if_needed();
+        crate::tray_host::broadcast_taskbar_created();
     }
     std::process::exit(0);
 }
@@ -132,15 +134,32 @@ mod platform {
         SHAppBarMessage, ABM_GETSTATE, ABM_SETSTATE, ABS_AUTOHIDE, APPBARDATA,
     };
     use windows::Win32::UI::WindowsAndMessaging::{
-        FindWindowExW, FindWindowW, IsWindowVisible, ShowWindow, SW_HIDE, SW_SHOWNA,
+        FindWindowExW, GetWindowThreadProcessId, IsWindowVisible, ShowWindow, SW_HIDE, SW_SHOWNA,
     };
 
-    fn bars() -> Vec<HWND> {
-        let mut out = Vec::new();
+    /// Explorer's taskbar — never Isle's own `Shell_TrayWnd` (the tray host).
+    fn primary() -> Option<HWND> {
+        let me = std::process::id();
+        let mut after: Option<HWND> = None;
         unsafe {
-            if let Ok(h) = FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()) {
-                out.push(h);
+            while let Ok(h) = FindWindowExW(None, after, w!("Shell_TrayWnd"), PCWSTR::null()) {
+                if h.is_invalid() {
+                    return None;
+                }
+                let mut pid = 0u32;
+                GetWindowThreadProcessId(h, Some(&mut pid));
+                if pid != me {
+                    return Some(h);
+                }
+                after = Some(h);
             }
+        }
+        None
+    }
+
+    fn bars() -> Vec<HWND> {
+        let mut out: Vec<HWND> = primary().into_iter().collect();
+        unsafe {
             // Taskbars on secondary monitors.
             let mut after: Option<HWND> = None;
             while let Ok(h) =
@@ -154,10 +173,6 @@ mod platform {
             }
         }
         out
-    }
-
-    fn primary() -> Option<HWND> {
-        unsafe { FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()).ok() }
     }
 
     fn set_autohide(on: bool) {

@@ -3,6 +3,8 @@
 
 #[cfg(windows)]
 mod win;
+#[cfg(windows)]
+pub(crate) use win::hicon_png;
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -457,6 +459,7 @@ pub fn apply_settings(app: &AppHandle) {
         }
         _ => None,
     };
+    crate::tray_host::set_enabled(app, on && s.replace_taskbar);
     let _ = shell_thread().send(ShellJob {
         hide_taskbar: on && s.replace_taskbar,
         hwnd: native_hwnd(&win),
@@ -466,6 +469,8 @@ pub fn apply_settings(app: &AppHandle) {
 
 /// Undo everything on exit (synchronous: the process is about to end).
 pub fn teardown(app: &AppHandle) {
+    crate::tray_host::shutdown();
+    crate::tray_host::broadcast_taskbar_created();
     if let Some(h) = app
         .get_webview_window(DOCK_LABEL)
         .as_ref()

@@ -3,6 +3,7 @@ import { getBackend } from "@/lib/backend";
 import type { DockApp, Rect } from "@/lib/types";
 import { DockMenu } from "./DockMenu";
 import { Previews } from "./Previews";
+import { TrayGroup, trayWidth } from "./Tray";
 import { dockVisible, magnify, useDock } from "./store";
 
 const PAD = 5; // horizontal padding around each icon
@@ -15,6 +16,7 @@ type Item =
   | { kind: "start" }
   | { kind: "app"; app: DockApp }
   | { kind: "sep" }
+  | { kind: "tray" }
   | { kind: "place"; place: "downloads" | "recycle" };
 
 export function Dock() {
@@ -30,6 +32,7 @@ export function Dock() {
   }, []);
 
   const apps = useDock((s) => s.apps);
+  const trayCount = useDock((s) => s.tray.length);
   const { iconSize, magnification, mode } = useDock((s) => s.settings.dock);
   const hovered = useDock((s) => s.hovered);
   const overlap = useDock((s) => s.overlap);
@@ -46,15 +49,16 @@ export function Dock() {
       ...pinned.map((app) => ({ kind: "app" as const, app })),
       ...(running.length ? [{ kind: "sep" as const }, ...running.map((app) => ({ kind: "app" as const, app }))] : []),
       { kind: "sep" },
+      ...(trayCount ? [{ kind: "tray" as const }, { kind: "sep" as const }] : []),
       { kind: "place", place: "downloads" },
       { kind: "place", place: "recycle" },
     ];
-  }, [apps]);
+  }, [apps, trayCount]);
 
   // Base layout (no magnification) — distances are measured against it so the
   // effect never feeds back on itself.
   const slot = iconSize + PAD * 2;
-  const baseWidths = items.map((it) => (it.kind === "sep" ? SEP : slot));
+  const baseWidths = items.map((it) => (it.kind === "sep" ? SEP : it.kind === "tray" ? trayWidth(trayCount) : slot));
   const baseTotal = baseWidths.reduce((a, b) => a + b, 0) + 16;
   const baseLeft = (size.w - baseTotal) / 2 + 8;
   const baseCentres = baseWidths.map((_, i) => baseLeft + baseWidths.slice(0, i).reduce((a, b) => a + b, 0) + baseWidths[i]! / 2);
@@ -67,7 +71,7 @@ export function Dock() {
     raf.current = requestAnimationFrame(() => setPointerX(x));
   };
   const scales = items.map((it, i) =>
-    it.kind === "sep" || pointerX === null || !magnification || menu ? 1 : magnify(Math.abs(baseCentres[i]! - pointerX), iconSize),
+    it.kind === "sep" || it.kind === "tray" || pointerX === null || !magnification || menu ? 1 : magnify(Math.abs(baseCentres[i]! - pointerX), iconSize),
   );
 
   const barH = iconSize + BAR_PAD_Y * 2;
@@ -75,7 +79,7 @@ export function Dock() {
   useHitRects(root, bar, { visible, extraAbove: magnification && hovered ? iconSize * 0.6 : 0 }, [items.length, scales.join(","), menu, preview, size.w]);
 
   return (
-    <div ref={root} className="relative h-full w-full select-none" onContextMenu={(e) => e.preventDefault()}>
+    <div ref={root} data-dock-root className="relative h-full w-full select-none" onContextMenu={(e) => e.preventDefault()}>
       {preview && <Previews popup={preview} canvasW={size.w} bottom={barH + BOTTOM + 14} />}
       {menu && <DockMenu popup={menu} canvasW={size.w} bottom={barH + BOTTOM + 14} />}
       <div
@@ -97,6 +101,12 @@ export function Dock() {
       >
         {items.map((it, i) => {
           const scale = scales[i]!;
+          if (it.kind === "tray")
+            return (
+              <div key="tray" className="flex shrink-0 items-end" style={{ width: baseWidths[i], paddingBottom: BAR_PAD_Y }}>
+                <TrayGroup iconSize={iconSize} />
+              </div>
+            );
           if (it.kind === "sep") return <div key={`sep${i}`} className="mx-[6px] mb-[14px] h-[60%] w-px self-end bg-white/15" style={{ height: iconSize * 0.7 }} />;
           return (
             <Slot key={it.kind === "app" ? it.app.key : it.kind === "place" ? it.place : "start"} width={slot * scale - (scale - 1) * PAD * 2}>
@@ -288,10 +298,11 @@ function useDockSync() {
         backend.on("dock://overlap", (overlap) => useDock.setState({ overlap })),
         backend.on("island://hover", (hovered) => useDock.setState({ hovered })),
         backend.on("settings://changed", (settings) => useDock.setState({ settings })),
+        backend.on("tray://icons", (tray) => useDock.setState({ tray })),
       );
-      const [settings, apps, places] = await Promise.all([backend.getSettings(), backend.dockApps(), backend.dockPlaces()]);
+      const [settings, apps, places, tray] = await Promise.all([backend.getSettings(), backend.dockApps(), backend.dockPlaces(), backend.trayIcons()]);
       if (disposed) return;
-      useDock.setState({ settings, apps, recycleItems: places.recycleBinItems });
+      useDock.setState({ settings, apps, recycleItems: places.recycleBinItems, tray });
       requestAnimationFrame(() => requestAnimationFrame(() => void backend.ready()));
     });
     const places = setInterval(async () => {

@@ -435,6 +435,24 @@ pub fn icon(key: &str, fallback_exe: Option<&str>) -> Option<String> {
         })
 }
 
+/// Another app's icon handle (e.g. a tray icon) → PNG data URL.
+pub fn hicon_png(h: isize) -> Option<String> {
+    unsafe {
+        let icon = HICON(h as *mut _);
+        let mut info = ICONINFO::default();
+        GetIconInfo(icon, &mut info).ok()?;
+        let png = bitmap_to_png(info.hbmColor, false);
+        let _ = DeleteObject(HGDIOBJ(info.hbmColor.0));
+        let _ = DeleteObject(HGDIOBJ(info.hbmMask.0));
+        png.map(|bytes| {
+            format!(
+                "data:image/png;base64,{}",
+                base64::engine::general_purpose::STANDARD.encode(bytes)
+            )
+        })
+    }
+}
+
 fn shell_image(parsing: &str) -> Option<Vec<u8>> {
     let item = shell_item(parsing)?;
     unsafe {

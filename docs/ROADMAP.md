@@ -47,7 +47,8 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - ✅ Taskbar hidden while the dock is on and **always restored**: normal quit, panic hook,
   watchdog process (crash / kill), and a marker file checked at next start; re-hidden if Explorer restarts
 - ✅ Tray → Dock menu: show/hide dock, hide taskbar on/off, mode
-- ⬜ System tray icons in the dock (needs a tray host — next)
+- ✅ System tray icons in the dock: Isle hosts Shell_NotifyIcon (own `Shell_TrayWnd`, forwarded to Explorer),
+  left/right/double click delivery (v4 + legacy), overflow popup; icons handed back to Explorer on quit/crash
 - ⬜ Drag to reorder pins, jump lists, notification badges
 
 ## Phase 4 — Shelf, calendar, notifications, HUDs ⬜

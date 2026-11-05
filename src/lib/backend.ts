@@ -1,7 +1,7 @@
 import type {
   Artwork, BatteryState, ControlAction, ControlsState, EventMap, MediaAction, MediaState, Rect, Settings, SettingsPage,
   Weather, WeatherLocation, WifiNetwork, WifiConnectResult, BtDevice, BtAction, UpdateInfo,
-  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction,
+  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction, TrayIcon, TrayButton,
 } from "./types";
 
 /**
@@ -59,6 +59,9 @@ export interface Backend {
   launcherToggle(show?: boolean): Promise<void>;
   power(action: PowerAction): Promise<void>;
   quit(): Promise<void>;
+  trayIcons(): Promise<TrayIcon[]>;
+  /** x/y: icon centre in dock-window px. */
+  trayClick(id: string, button: TrayButton, x: number, y: number): Promise<void>;
   reload(): Promise<void>;
   on<K extends keyof EventMap>(event: K, cb: (payload: EventMap[K]) => void): () => void;
 }

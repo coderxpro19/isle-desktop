@@ -71,6 +71,8 @@ export function createTauriBackend(): Backend {
     launcherToggle: (show) => invoke("launcher_toggle", { show: show ?? null }),
     power: (action) => invoke("power", { action }),
     quit: () => invoke("app_quit"),
+    trayIcons: () => invoke("tray_icons"),
+    trayClick: (id, button, x, y) => invoke("tray_click", { id, button, x, y }),
     reload: () => invoke("app_reload"),
     weather: fetchWeather,
     geocode,

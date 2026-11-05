@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Backend } from "@/lib/backend";
-import type { DockApp, Settings } from "@/lib/types";
+import type { DockApp, Settings, TrayIcon } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/types";
 
 export interface Popup {
@@ -23,6 +23,7 @@ export interface DockState {
   /** Apps we've launched and are waiting to see a window for → bounce. */
   launching: Record<string, number>;
   recycleItems: number;
+  tray: TrayIcon[];
 
   loadIcon(key: string, fallback?: string | null): void;
 }
@@ -38,6 +39,7 @@ export const useDock = create<DockState>((set, get) => ({
   preview: null,
   launching: {},
   recycleItems: 0,
+  tray: [],
 
   loadIcon(key, fallback) {
     const { icons, backend } = get();

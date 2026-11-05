@@ -13,7 +13,8 @@
 //! - `system`   open Settings pages, device location
 //! - `dock`     dock + Start menu (taskbar replacement)
 //! - `shell`    taskbar hide/restore (crash-safe), AppBar space reservation
-//! - `tray`     tray icon + menu
+//! - `tray`     Isle's own tray icon + menu
+//! - `tray_host` hosts other apps' tray icons for the dock
 //! - `events`   names of every event emitted to the UI
 
 mod audio;
@@ -30,6 +31,7 @@ mod shell;
 mod stats;
 mod system;
 mod tray;
+mod tray_host;
 mod util;
 
 use tauri::Manager;
@@ -81,6 +83,7 @@ pub fn run() {
             app.manage(stats::StatsService::spawn(handle.clone()));
             app.manage(connect::ConnectService::new(handle.clone()));
             app.manage(dock::DockService::new());
+            app.manage(tray_host::TrayHost::default());
             log::info!("setup: services started");
 
             power::spawn_monitor(handle.clone());
@@ -146,6 +149,8 @@ pub fn run() {
             dock::launcher_toggle,
             dock::power,
             dock::app_quit,
+            tray_host::tray_icons,
+            tray_host::tray_click,
             dock::app_reload,
         ])
         .build(tauri::generate_context!())

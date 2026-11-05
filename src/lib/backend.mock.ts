@@ -362,6 +362,24 @@ export function createMockBackend(): Backend {
     async power(action) {
       console.info(`[mock] power ${action}`);
     },
+    trayIcons: async () =>
+      [
+        ["nordvpn", "NordVPN — Connected", "#4687ff", "N"],
+        ["whatsapp", "WhatsApp", "#25d366", "W"],
+        ["security", "Windows Security", "#2b88d8", "✓"],
+        ["onedrive", "OneDrive — Up to date", "#0a64d6", "☁"],
+        ["isle", "Isle", "#2a2f5c", "◖"],
+        ["discord", "Discord", "#5865f2", "D"],
+        ["steam", "Steam", "#1b2838", "S"],
+        ["nvidia", "NVIDIA Settings", "#76b900", "N"],
+      ].map(([id, tip, color, g]) => ({
+        id: id!,
+        tip: tip!,
+        icon: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="14" fill="${color}"/><text x="16" y="21.5" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="white">${g}</text></svg>`)}`,
+      })),
+    async trayClick(id, button) {
+      console.info(`[mock] tray ${button} on ${id}`);
+    },
     async quit() {
       console.info("[mock] quit");
     },
