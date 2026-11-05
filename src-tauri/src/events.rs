@@ -21,6 +21,11 @@ pub const TRAY_ICONS: &str = "tray://icons";
 /// Volume / brightness HUD (`controls::Hud`).
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const HUD: &str = "hud://show";
+/// Clipboard history changed (payload: `Vec<clipboard::Clip>`).
+pub const CLIP_CHANGED: &str = "clip://changed";
+/// Alt+Shift+V: open clipboard history.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const CLIP_OPEN: &str = "clip://open";
 /// A new Windows notification arrived (payload: `notify::Notice`).
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const NOTIFY_NEW: &str = "notify://new";

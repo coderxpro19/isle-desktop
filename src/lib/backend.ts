@@ -1,7 +1,7 @@
 import type {
   Artwork, BatteryState, ControlAction, ControlsState, EventMap, MediaAction, MediaState, Rect, Settings, SettingsPage,
   Weather, WeatherLocation, WifiNetwork, WifiConnectResult, BtDevice, BtAction, UpdateInfo,
-  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction, TrayIcon, TrayButton, FileDrop, FileInfo, NoticeState } from "./types";
+  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction, TrayIcon, TrayButton, Clip, FileDrop, FileInfo, NoticeState } from "./types";
 
 /**
  * Everything the UI needs from the native side. Two implementations:
@@ -60,6 +60,12 @@ export interface Backend {
   quit(): Promise<void>;
   trayIcons(): Promise<TrayIcon[]>;
   /** Download ICS feeds (natively: calendar servers don't allow browser fetches). */
+  clipList(): Promise<Clip[]>;
+  clipPin(id: number, pinned: boolean): Promise<void>;
+  /** Delete one clip, or everything unpinned with null. */
+  clipDelete(id: number | null): Promise<void>;
+  /** Put a clip on the clipboard; `paste` also pastes it into the app opened from. */
+  clipCopy(id: number, paste: boolean): Promise<void>;
   notifyState(): Promise<NoticeState>;
   /** Remove one notification from the Action Center (or all with null). */
   notifyDismiss(id: number | null): Promise<void>;

@@ -61,6 +61,8 @@ pub struct IslandSettings {
     pub volume_hud: bool,
     /// Show Windows notifications on the island.
     pub notifications: bool,
+    /// Keep clipboard history (Alt+Shift+V).
+    pub clipboard_history: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -161,6 +163,7 @@ impl Default for IslandSettings {
             focus_mode: false,
             volume_hud: true,
             notifications: true,
+            clipboard_history: true,
         }
     }
 }
@@ -266,6 +269,7 @@ pub fn settings_set(
     store.save(&settings)?;
     *store.inner.write() = settings.clone();
     crate::hud::set_enabled(settings.island.volume_hud);
+    crate::clipboard::set_enabled(settings.island.clipboard_history);
     let _ = app.emit(events::SETTINGS_CHANGED, settings);
     crate::dock::apply_settings(&app);
     Ok(())

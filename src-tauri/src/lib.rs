@@ -19,6 +19,7 @@
 
 mod audio;
 mod calendar;
+mod clipboard;
 mod connect;
 mod controls;
 mod dock;
@@ -89,6 +90,12 @@ pub fn run() {
             app.manage(dock::DockService::new());
             app.manage(tray_host::TrayHost::default());
             app.manage(notify::Notifications::spawn(handle.clone()));
+            let clip_on = app
+                .state::<settings::SettingsStore>()
+                .get()
+                .island
+                .clipboard_history;
+            app.manage(clipboard::ClipboardService::spawn(handle.clone(), clip_on));
             log::info!("setup: services started");
 
             power::spawn_monitor(handle.clone());
@@ -163,6 +170,10 @@ pub fn run() {
             dock::app_quit,
             tray_host::tray_icons,
             calendar::calendar_fetch,
+            clipboard::clip_list,
+            clipboard::clip_pin,
+            clipboard::clip_delete,
+            clipboard::clip_copy,
             notify::notify_state,
             notify::notify_dismiss,
             notify::notify_open,

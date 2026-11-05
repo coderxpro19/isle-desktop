@@ -1,5 +1,5 @@
 import type { Backend } from "./backend";
-import type { Artwork, BatteryState, BtDevice, ControlsState, DockApp, LauncherApp, WifiNetwork, EventMap, MediaState, Rect, Settings, StatsTick, Weather, FileDrop, Notice, NoticeState } from "./types";
+import type { Artwork, BatteryState, BtDevice, ControlsState, DockApp, LauncherApp, WifiNetwork, EventMap, MediaState, Rect, Settings, StatsTick, Weather, Clip, FileDrop, Notice, NoticeState } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 /** Fake tracks with generated cover art, for designing in a browser. */
@@ -27,6 +27,7 @@ export interface MockControls {
   nextTrack(): void;
   notify(n?: Partial<Notice>): void;
   drop(paths: string[]): void;
+  openClipboard(): void;
 }
 
 declare global {
@@ -179,6 +180,18 @@ export function createMockBackend(): Backend {
     if (media?.playing && position(media) >= media.durationMs) loadTrack(++trackIdx, true);
   }, 1000);
 
+  const svgImg = (a: string, b: string) =>
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="150"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="240" height="150" fill="url(#g)"/><circle cx="170" cy="55" r="26" fill="#ffd25a"/></svg>`)}`;
+  const ago = (m: number) => Date.now() - m * 60_000;
+  let clips: Clip[] = [
+    { id: 6, kind: "text", text: "https://github.com/coderxpro19/isle-desktop/releases", files: [], preview: null, width: 0, height: 0, pinned: false, atMs: ago(1), app: "chrome" },
+    { id: 5, kind: "image", text: null, files: [], preview: svgImg("#ff7a59", "#7b3fe4"), width: 1920, height: 1200, pinned: false, atMs: ago(6), app: "SnippingTool" },
+    { id: 4, kind: "text", text: "Meet at the Lekki office by 6pm — bring the brand board and the new samples.", files: [], preview: null, width: 0, height: 0, pinned: false, atMs: ago(14), app: "WhatsApp" },
+    { id: 3, kind: "files", text: null, files: ["C:\\Users\\you\\Desktop\\Isle pitch deck.pdf", "C:\\Users\\you\\Pictures\\lagos-sunset.jpg"], preview: null, width: 0, height: 0, pinned: false, atMs: ago(40), app: "explorer" },
+    { id: 2, kind: "text", text: "npm run app:dev", files: [], preview: null, width: 0, height: 0, pinned: true, atMs: ago(300), app: "Code" },
+    { id: 1, kind: "text", text: "coderxpro19@gmail.com", files: [], preview: null, width: 0, height: 0, pinned: true, atMs: ago(2000), app: null },
+  ];
+  const emitClips = () => emit("clip://changed", clips);
   let notices: NoticeState = { access: "allowed", items: [] };
   let noticeId = 1;
   const dropCbs = new Set<(e: FileDrop) => void>();
@@ -200,6 +213,9 @@ export function createMockBackend(): Backend {
       notices = { ...notices, items: [notice, ...notices.items] };
       emit("notify://new", notice);
       emit("notify://changed", notices);
+    },
+    openClipboard() {
+      emit("clip://open", null);
     },
     drop(paths) {
       dropCbs.forEach((cb) => cb({ type: "drop", paths }));
@@ -403,6 +419,22 @@ export function createMockBackend(): Backend {
         tip: tip!,
         icon: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="14" fill="${color}"/><text x="16" y="21.5" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="white">${g}</text></svg>`)}`,
       })),
+    async clipList() {
+      return clips;
+    },
+    async clipPin(id, pinned) {
+      clips = clips.map((c) => (c.id === id ? { ...c, pinned } : c));
+      emitClips();
+    },
+    async clipDelete(id) {
+      clips = clips.filter((c) => (id === null ? c.pinned : c.id !== id));
+      emitClips();
+    },
+    async clipCopy(id) {
+      const c = clips.find((x) => x.id === id);
+      if (c) clips = [{ ...c, atMs: Date.now() }, ...clips.filter((x) => x.id !== id)];
+      emitClips();
+    },
     async notifyState() {
       return notices;
     },

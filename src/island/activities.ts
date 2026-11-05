@@ -94,6 +94,8 @@ function expanded(primary: ActivityKind | null, radius: number, tab: Tab): Size 
       return { w: 460, h: TAB_BAR_H + 250, r };
     case "notifications":
       return { w: 440, h: TAB_BAR_H + 262, r };
+    case "clipboard":
+      return { w: 460, h: TAB_BAR_H + 290, r };
     case "shelf":
       return { w: 460, h: TAB_BAR_H + 218, r };
     case "home":

@@ -11,6 +11,7 @@ import { UPDATE_BANNER_H, useShowUpdateBanner } from "./components/UpdateBanner"
 import {
   useBackendSync,
   useCalendar,
+  useClipboard,
   useClockAlarms,
   useClockTicker,
   useNotifications,
@@ -41,6 +42,7 @@ export function Island() {
   useClockAlarms();
   useCalendar();
   useNotifications();
+  useClipboard();
   useShelf();
 
   const mode = useIsland((s) => s.mode);

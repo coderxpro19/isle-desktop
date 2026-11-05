@@ -180,3 +180,9 @@ export const FolderIcon = (p: P) => (
 export const FileIcon = (p: P) => (
   <svg {...base(p)}><path d="M6.5 2.5h7l5 5v12.3c0 .9-.8 1.7-1.7 1.7H6.5c-.9 0-1.7-.8-1.7-1.7V4.2c0-.9.8-1.7 1.7-1.7Z" opacity=".9" /><path d="M13.5 2.5v4.2c0 .4.4.8.8.8h4.2" fill="rgba(0,0,0,.25)" /></svg>
 );
+export const ClipboardIcon = (p: P) => (
+  <svg {...stroke(p)}><rect x="5.5" y="4.5" width="13" height="16" rx="2.2" /><path d="M9 4.5h6v2.2H9zM8.8 11h6.4M8.8 14.5h4.4" /></svg>
+);
+export const StarIcon = ({ filled, ...p }: P & { filled?: boolean }) => (
+  <svg {...stroke(p)}><path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.3L12 16l-4.9 2.6 1.1-5.3-4-3.7 5.4-.6L12 4Z" fill={filled ? "currentColor" : "none"} /></svg>
+);

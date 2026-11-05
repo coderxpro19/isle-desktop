@@ -58,6 +58,7 @@ export interface Settings {
     focusMode: boolean;
     volumeHud: boolean;
     notifications: boolean;
+    clipboardHistory: boolean;
   };
   appearance: {
     accent: string;
@@ -116,6 +117,7 @@ export const DEFAULT_SETTINGS: Settings = {
     focusMode: false,
     volumeHud: true,
     notifications: true,
+    clipboardHistory: true,
   },
   appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false },
   weather: { location: null, fahrenheit: false },
@@ -136,6 +138,19 @@ export interface NoticeState {
   access: "unknown" | "allowed" | "denied" | "unsupported";
   /** Newest first. */
   items: Notice[];
+}
+export interface Clip {
+  id: number;
+  kind: "text" | "image" | "files";
+  text: string | null;
+  files: string[];
+  /** Image thumbnail data URL. */
+  preview: string | null;
+  width: number;
+  height: number;
+  pinned: boolean;
+  atMs: number;
+  app: string | null;
 }
 export interface FileInfo {
   path: string;
@@ -291,6 +306,8 @@ export interface EventMap {
   "tray://icons": TrayIcon[];
   "hud://show": Hud;
   "notify://new": Notice;
+  "clip://changed": Clip[];
+  "clip://open": null;
   "notify://changed": NoticeState;
   "launcher://opened": null;
 }

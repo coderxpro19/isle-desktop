@@ -62,7 +62,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 
 ## Phase 5 — Beyond Bloom ⬜
 - AI assistant: quick ask, summarise clipboard, voice; bring-your-own key (Claude, Gemini, OpenAI)
-- Clipboard history with search and pinning
+- ✅ Clipboard history with search and pinning; Alt+Shift+V pastes into the current app; skips password-manager copies (v0.9.0)
 - Theme engine (colours, blur, radius, fonts) + theme marketplace
 - Plugin/widget SDK: manifest + permissions, sandboxed iframes, typed host API
 - One island per monitor

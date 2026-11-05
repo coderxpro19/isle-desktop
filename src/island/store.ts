@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Backend } from "@/lib/backend";
-import type { BatteryState, ControlsState, FileInfo, Hud, MediaState, Notice, NoticeState, PairingPrompt, Settings, StatsTick, UpdateInfo, Weather } from "@/lib/types";
+import type { BatteryState, Clip, ControlsState, FileInfo, Hud, MediaState, Notice, NoticeState, PairingPrompt, Settings, StatsTick, UpdateInfo, Weather } from "@/lib/types";
 import type { CalEvent } from "@/lib/ics";
 import { EMPTY_CLOCK, type ClockState } from "./clock";
 import { DEFAULT_SETTINGS } from "@/lib/types";
@@ -14,7 +14,7 @@ export type UpdateState =
   | { kind: "available"; info: UpdateInfo }
   | { kind: "installing"; info: UpdateInfo; progress: number | null }
   | { kind: "error"; message: string; info?: UpdateInfo };
-export type Tab = "home" | "controls" | "clock" | "notifications" | "shelf" | "weather" | "stats";
+export type Tab = "home" | "controls" | "clock" | "clipboard" | "notifications" | "shelf" | "weather" | "stats";
 export type ShelfItem = FileInfo & { thumb?: string | null };
 export type ClockView = "timer" | "stopwatch" | "focus" | "calendar";
 /** Sub-page inside the Controls tab. */
@@ -71,6 +71,9 @@ export interface IslandState {
   shelf: ShelfItem[];
   /** Files are being dragged over the island. */
   dropping: boolean;
+  clips: Clip[];
+  /** Opened with Alt+Shift+V: stays open until Esc, a paste or focus loss. */
+  summoned: boolean;
 
   setMode(mode: Mode): void;
   setTab(tab: Tab): void;
@@ -107,6 +110,8 @@ export const useIsland = create<IslandState>((set, get) => ({
   notices: { access: "unknown", items: [] },
   shelf: [],
   dropping: false,
+  clips: [],
+  summoned: false,
   clock: EMPTY_CLOCK,
   clockView: "timer",
   events: [],

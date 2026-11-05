@@ -7,6 +7,7 @@ import { useIsland } from "../store";
 import { describe } from "@/lib/weather";
 import type { Tab } from "../store";
 import { ClockPanel } from "./ClockPanel";
+import { ClipboardPanel } from "./ClipboardPanel";
 import { ControlsPanel } from "./ControlsPanel";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { ShelfPanel } from "./ShelfPanel";
@@ -186,6 +187,8 @@ export function ExpandedContent({ primary, tab }: { primary: ActivityKind | null
       return <StatsPanel />;
     case "clock":
       return <ClockPanel />;
+    case "clipboard":
+      return <ClipboardPanel />;
     case "notifications":
       return <NotificationsPanel />;
     case "shelf":

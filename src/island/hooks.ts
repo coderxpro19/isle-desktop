@@ -136,7 +136,7 @@ export function useTransientExpiry() {
  * brushing past the island on the way to a tab doesn't trigger it.
  */
 export function useHoverIntent() {
-  const pinned = useIsland((s) => s.pins > 0 || s.islandMenu);
+  const pinned = useIsland((s) => s.pins > 0 || s.islandMenu || s.summoned);
   const hovered = useIsland((s) => s.hovered) || pinned;
   const mode = useIsland((s) => s.mode);
   const expandOnHover = useIsland((s) => s.settings.island.expandOnHover);
@@ -161,7 +161,10 @@ export function useHoverIntent() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (useIsland.getState().islandMenu) useIsland.setState({ islandMenu: false });
-      else useIsland.getState().setMode("compact");
+      else {
+        useIsland.setState({ summoned: false, hovered: false });
+        useIsland.getState().setMode("compact");
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -341,5 +344,29 @@ export function useNotifications() {
       }),
     ];
     return () => offs.forEach((off) => off());
+  }, [backend]);
+}
+
+/** Clipboard history list, and Alt+Shift+V to summon it. */
+export function useClipboard() {
+  const backend = useIsland((s) => s.backend);
+  useEffect(() => {
+    if (!backend) return;
+    void backend.clipList().then((clips) => useIsland.setState({ clips }), () => {});
+    const offs = [
+      backend.on("clip://changed", (clips) => useIsland.setState({ clips })),
+      backend.on("clip://open", () =>
+        useIsland.setState({ summoned: true, mode: "expanded", tab: "clipboard", hovered: true, islandMenu: false, transient: null }),
+      ),
+    ];
+    // Clicking elsewhere dismisses a summoned island.
+    const onBlur = () => {
+      if (useIsland.getState().summoned) useIsland.setState({ summoned: false, hovered: false });
+    };
+    window.addEventListener("blur", onBlur);
+    return () => {
+      offs.forEach((off) => off());
+      window.removeEventListener("blur", onBlur);
+    };
   }, [backend]);
 }
