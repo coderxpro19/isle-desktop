@@ -89,6 +89,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     )?;
     items.sync(app);
 
+    let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let reload = MenuItem::with_id(app, "reload", "Reload Isle", true, None::<&str>)?;
     let logs = MenuItem::with_id(app, "logs", "Open log folder", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Isle", true, None::<&str>)?;
@@ -97,6 +98,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         &[
             &version,
             &update,
+            &settings,
             &PredefinedMenuItem::separator(app)?,
             &dock_menu,
             &reload,
@@ -134,6 +136,9 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                 "dock-fixed" => store.update(app, |s| s.dock.mode = DockMode::Fixed),
                 "dock-autohide" => store.update(app, |s| s.dock.mode = DockMode::AutoHide),
                 "dock-smart" => store.update(app, |s| s.dock.mode = DockMode::Smart),
+                "settings" => {
+                    let _ = crate::settings_window::open(app, None);
+                }
                 "logs" => {
                     if let Ok(dir) = app.path().app_log_dir() {
                         let _ = crate::system::open_path(&dir);

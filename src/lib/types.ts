@@ -64,10 +64,13 @@ export interface Settings {
     accent: string;
     cornerRadius: number;
     reduceMotion: boolean;
+    /** Island / dock surface colour (#rrggbb). */
+    surface: string;
   };
   weather: WeatherSettings;
   dock: DockSettings;
   calendar: { feeds: CalendarFeed[] };
+  general: { startWithWindows: boolean };
 }
 
 export interface CalendarFeed {
@@ -119,10 +122,11 @@ export const DEFAULT_SETTINGS: Settings = {
     notifications: true,
     clipboardHistory: true,
   },
-  appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false },
+  appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false, surface: "#000000" },
   weather: { location: null, fahrenheit: false },
   dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 40, pinned: null },
   calendar: { feeds: [] },
+  general: { startWithWindows: true },
 };
 
 export interface Notice {

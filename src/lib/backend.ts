@@ -60,6 +60,13 @@ export interface Backend {
   quit(): Promise<void>;
   trayIcons(): Promise<TrayIcon[]>;
   /** Download ICS feeds (natively: calendar servers don't allow browser fetches). */
+  /** Isle's own Settings window. */
+  openIsleSettings(section?: string): Promise<void>;
+  /** Restore a settings backup (JSON text); returns the settings now in effect. */
+  settingsImport(json: string): Promise<Settings>;
+  /** Save a backup to Downloads; returns its path. */
+  settingsExport(): Promise<string>;
+  appVersion(): Promise<string>;
   clipList(): Promise<Clip[]>;
   clipPin(id: number, pinned: boolean): Promise<void>;
   /** Delete one clip, or everything unpinned with null. */

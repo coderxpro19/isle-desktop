@@ -54,7 +54,7 @@ export function Island() {
   const now = useIsland((s) => s.now);
   const backend = useIsland((s) => s.backend);
   const tab = useIsland((s) => s.tab);
-  const { cornerRadius, reduceMotion } = useIsland((s) => s.settings.appearance);
+  const { cornerRadius, reduceMotion, surface } = useIsland((s) => s.settings.appearance);
   const { setHovered, setMode } = useIsland.getState();
 
   const activities = useMemo(
@@ -112,9 +112,9 @@ export function Island() {
   const contentTop = expanded ? TAB_BAR_H : 0;
 
   return (
-    <div className="relative select-none" style={{ width: CANVAS_W, height: CANVAS_H }}>
+    <div className="relative select-none" style={{ width: CANVAS_W, height: CANVAS_H, ["--isle-surface" as string]: surface }}>
       <motion.div
-        className="isle-pill absolute left-1/2 cursor-default overflow-hidden bg-black"
+        className="isle-pill absolute left-1/2 cursor-default overflow-hidden bg-[var(--isle-surface,#000)]"
         style={{ top: PILL_TOP, x: "-50%" }}
         initial={false}
         animate={{
@@ -204,7 +204,7 @@ function Bubble({ activity, index, pillW, spring }: { activity: Activity; index:
     <motion.button
       type="button"
       aria-label={activity.kind}
-      className="absolute grid place-items-center overflow-hidden rounded-full bg-black shadow-[0_4px_14px_rgba(0,0,0,.28),0_0_0_1px_rgba(255,255,255,.06)]"
+      className="absolute grid place-items-center overflow-hidden rounded-full bg-[var(--isle-surface,#000)] shadow-[0_4px_14px_rgba(0,0,0,.28),0_0_0_1px_rgba(255,255,255,.06)]"
       style={{ top: PILL_TOP, width: BUBBLE, height: BUBBLE }}
       initial={{ left: left - BUBBLE, scale: 0.4, opacity: 0 }}
       animate={{ left, scale: 1, opacity: 1 }}

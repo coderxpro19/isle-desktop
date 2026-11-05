@@ -6,6 +6,7 @@ import type { EventMap } from "./types";
 import { fetchWeather, geocode } from "./weather";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { getVersion } from "@tauri-apps/api/app";
 
 /** Events addressed to one island window rather than broadcast. */
 const WINDOW_SCOPED = new Set<keyof EventMap>(["island://hover", "launcher://opened"]);
@@ -73,6 +74,10 @@ export function createTauriBackend(): Backend {
     quit: () => invoke("app_quit"),
     trayIcons: () => invoke("tray_icons"),
     calendarFetch: (urls) => invoke("calendar_fetch", { urls }),
+    openIsleSettings: (section) => invoke("isle_settings_open", { section: section ?? null }),
+    settingsImport: (json) => invoke("settings_import", { json }),
+    settingsExport: () => invoke("settings_export"),
+    appVersion: () => getVersion(),
     clipList: () => invoke("clip_list"),
     clipPin: (id, pinned) => invoke("clip_pin", { id, pinned }),
     clipDelete: (id) => invoke("clip_delete", { id }),

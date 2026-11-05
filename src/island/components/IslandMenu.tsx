@@ -22,7 +22,6 @@ const MODES: [DockMode, string][] = [
 export function IslandMenu({ top }: { top: number }) {
   const backend = useIsland((s) => s.backend);
   const dock = useIsland((s) => s.settings.dock);
-  const volumeHud = useIsland((s) => s.settings.island.volumeHud);
   const updateSettings = useIsland((s) => s.updateSettings);
   const close = () => useIsland.setState({ islandMenu: false });
   const open = (tab: Tab) => () => {
@@ -42,10 +41,6 @@ export function IslandMenu({ top }: { top: number }) {
       <Item onClick={open("clock")}>Clock &amp; Calendar</Item>
       <Item onClick={open("weather")}>Weather</Item>
       <Item onClick={open("stats")}>System</Item>
-      <div className="flex items-center justify-between px-2.5 py-1">
-        <span>Volume pop-up</span>
-        <Toggle on={volumeHud} onChange={(v) => updateSettings((s) => ({ ...s, island: { ...s.island, volumeHud: v } }))} />
-      </div>
       <Sep />
       <div className="flex items-center justify-between px-2.5 py-1">
         <span>Dock</span>
@@ -73,6 +68,14 @@ export function IslandMenu({ top }: { top: number }) {
         }}
       >
         Check for updates
+      </Item>
+      <Item
+        onClick={() => {
+          close();
+          void backend?.openIsleSettings();
+        }}
+      >
+        Settings…
       </Item>
       <Sep />
       <Item onClick={() => void backend?.reload()}>Reload Isle</Item>

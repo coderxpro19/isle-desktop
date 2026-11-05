@@ -63,8 +63,8 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 ## Phase 5 — Beyond Bloom ⬜
 - AI assistant: quick ask, summarise clipboard, voice; bring-your-own key (Claude, Gemini, OpenAI)
 - ✅ Clipboard history with search and pinning; Alt+Shift+V pastes into the current app; skips password-manager copies (v0.9.0)
-- Theme engine (colours, blur, radius, fonts) + theme marketplace
+- 🟨 Theme engine: presets, accent, island colour, radius (v0.10.0) · ⬜ fonts, marketplace
 - Plugin/widget SDK: manifest + permissions, sandboxed iframes, typed host API
 - One island per monitor
-- Settings app with import/export and cloud sync
+- ✅ Settings app with import/export, Start with Windows (v0.10.0) · ⬜ cloud sync
 - Performance budget in CI: < 1% idle CPU, < 80 MB RAM, 60 fps+ animations

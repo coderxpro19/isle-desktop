@@ -419,6 +419,22 @@ export function createMockBackend(): Backend {
         tip: tip!,
         icon: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="14" fill="${color}"/><text x="16" y="21.5" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="white">${g}</text></svg>`)}`,
       })),
+    async openIsleSettings(section) {
+      window.open(`/?view=settings&section=${section ?? "general"}`, "_blank");
+    },
+    async settingsImport(json) {
+      const parsed = JSON.parse(json) as Partial<Settings>;
+      if (!parsed || typeof parsed !== "object" || !("island" in parsed)) throw new Error("That isn't an Isle settings file.");
+      settings = { ...structuredClone(DEFAULT_SETTINGS), ...parsed } as Settings;
+      emit("settings://changed", settings);
+      return settings;
+    },
+    async settingsExport() {
+      return "C:\\Users\\you\\Downloads\\Isle settings.json";
+    },
+    async appVersion() {
+      return "0.10.0-dev";
+    },
     async clipList() {
       return clips;
     },

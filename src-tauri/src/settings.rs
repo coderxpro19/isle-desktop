@@ -20,6 +20,22 @@ pub struct Settings {
     pub weather: WeatherSettings,
     pub dock: DockSettings,
     pub calendar: CalendarSettings,
+    pub general: GeneralSettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct GeneralSettings {
+    /// Launch Isle when you sign in to Windows.
+    pub start_with_windows: bool,
+}
+
+impl Default for GeneralSettings {
+    fn default() -> Self {
+        Self {
+            start_with_windows: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -134,6 +150,8 @@ pub struct Appearance {
     pub accent: String,
     pub corner_radius: u32,
     pub reduce_motion: bool,
+    /// Island / dock surface colour as #rrggbb.
+    pub surface: String,
 }
 
 impl Default for Settings {
@@ -145,6 +163,7 @@ impl Default for Settings {
             weather: Default::default(),
             dock: Default::default(),
             calendar: Default::default(),
+            general: Default::default(),
         }
     }
 }
@@ -174,6 +193,7 @@ impl Default for Appearance {
             accent: "artwork".into(),
             corner_radius: 22,
             reduce_motion: false,
+            surface: "#000000".into(),
         }
     }
 }
@@ -250,9 +270,63 @@ impl SettingsStore {
             log::warn!("saving settings failed: {e}");
         }
         *self.inner.write() = next.clone();
-        let _ = app.emit(events::SETTINGS_CHANGED, &next);
-        crate::dock::apply_settings(app);
+        apply(app, &next);
     }
+
+    fn replace(&self, app: &AppHandle, settings: Settings) -> Result<(), String> {
+        self.save(&settings)?;
+        *self.inner.write() = settings.clone();
+        apply(app, &settings);
+        Ok(())
+    }
+}
+
+/// Push settings out to every subsystem and window.
+pub fn apply(app: &AppHandle, s: &Settings) {
+    crate::hud::set_enabled(s.island.volume_hud);
+    crate::clipboard::set_enabled(s.island.clipboard_history);
+    crate::autostart::set(s.general.start_with_windows);
+    let _ = app.emit(events::SETTINGS_CHANGED, s);
+    crate::dock::apply_settings(app);
+}
+
+/// Parse a settings backup (any older version; missing fields get defaults).
+pub fn parse_backup(json: &str) -> Result<Settings, String> {
+    let v: serde_json::Value = serde_json::from_str(json)
+        .map_err(|_| "That isn't a valid Isle settings file.".to_string())?;
+    if !v.is_object() || v.get("island").is_none() {
+        return Err("That isn't an Isle settings file.".into());
+    }
+    let s: Settings =
+        serde_json::from_value(v).map_err(|e| format!("Couldn't read that file: {e}"))?;
+    Ok(migrate(s))
+}
+
+#[tauri::command]
+pub fn settings_import(
+    app: AppHandle,
+    store: State<'_, SettingsStore>,
+    json: String,
+) -> Result<Settings, String> {
+    let s = parse_backup(&json)?;
+    store.replace(&app, s.clone())?;
+    Ok(s)
+}
+
+/// Save a backup to Downloads and show it in Explorer. Returns the file path.
+#[tauri::command]
+pub fn settings_export(app: AppHandle, store: State<'_, SettingsStore>) -> Result<String, String> {
+    let dir = app
+        .path()
+        .download_dir()
+        .or_else(|_| app.path().document_dir())
+        .map_err(|e| e.to_string())?;
+    let path = dir.join("Isle settings.json");
+    let json = serde_json::to_string_pretty(&store.get()).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    let p = path.to_string_lossy().into_owned();
+    let _ = crate::shelf::shelf_reveal(p.clone());
+    Ok(p)
 }
 
 #[tauri::command]
@@ -266,18 +340,23 @@ pub fn settings_set(
     store: State<'_, SettingsStore>,
     settings: Settings,
 ) -> Result<(), String> {
-    store.save(&settings)?;
-    *store.inner.write() = settings.clone();
-    crate::hud::set_enabled(settings.island.volume_hud);
-    crate::clipboard::set_enabled(settings.island.clipboard_history);
-    let _ = app.emit(events::SETTINGS_CHANGED, settings);
-    crate::dock::apply_settings(&app);
-    Ok(())
+    store.replace(&app, settings)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn backups_are_validated() {
+        assert!(parse_backup("nope").is_err());
+        assert!(parse_backup(r#"{"hello":1}"#).is_err());
+        let s = parse_backup(r#"{"version":1,"island":{"clock24h":true},"dock":{"iconSize":48}}"#)
+            .unwrap();
+        assert!(s.island.clock_24h);
+        assert!(s.general.start_with_windows);
+        assert_eq!(s.version, SETTINGS_VERSION);
+    }
 
     #[test]
     fn partial_json_fills_defaults() {

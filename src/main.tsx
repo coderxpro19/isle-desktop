@@ -29,13 +29,21 @@ async function boot() {
     } else if (label === "launcher") {
       const { Launcher } = await import("@/dock/Launcher");
       view = <Launcher />;
+    } else if (label === "settings") {
+      document.documentElement.classList.add("settings-root");
+      const { SettingsApp } = await import("@/settings/SettingsApp");
+      view = <SettingsApp />;
     }
     root.render(<StrictMode>{view}</StrictMode>);
   } else {
     // `?view=dock` / `?view=launcher` render a window's UI exactly as the
     // native window does (full-window, no dev container) for layout checks.
     const view = new URLSearchParams(location.search).get("view");
-    if (view === "dock") {
+    if (view === "settings") {
+      document.documentElement.classList.add("settings-root");
+      const { SettingsApp } = await import("@/settings/SettingsApp");
+      root.render(<StrictMode><SettingsApp /></StrictMode>);
+    } else if (view === "dock") {
       const { Dock } = await import("@/dock/Dock");
       root.render(<StrictMode><Dock /></StrictMode>);
     } else if (view === "launcher") {

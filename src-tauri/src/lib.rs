@@ -18,6 +18,7 @@
 //! - `events`   names of every event emitted to the UI
 
 mod audio;
+mod autostart;
 mod calendar;
 mod clipboard;
 mod connect;
@@ -31,6 +32,7 @@ mod media;
 mod notify;
 mod power;
 mod settings;
+mod settings_window;
 mod shelf;
 mod shell;
 mod stats;
@@ -78,6 +80,8 @@ pub fn run() {
             shell::restore_taskbar_if_needed();
 
             let store = settings::SettingsStore::load(&handle);
+            // Keeps the Run entry pointing at the current exe after updates.
+            autostart::set(store.get().general.start_with_windows);
             app.manage(store);
 
             app.manage(island::HitRegions::default());
@@ -170,6 +174,9 @@ pub fn run() {
             dock::app_quit,
             tray_host::tray_icons,
             calendar::calendar_fetch,
+            settings::settings_import,
+            settings::settings_export,
+            settings_window::isle_settings_open,
             clipboard::clip_list,
             clipboard::clip_pin,
             clipboard::clip_delete,
