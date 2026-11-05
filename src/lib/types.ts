@@ -167,6 +167,11 @@ export interface PairingPrompt {
   pin: string;
 }
 
+export interface UpdateInfo {
+  version: string;
+  notes: string | null;
+}
+
 /** Spectrum frame: 12 bands, 0-255. */
 export type Spectrum = number[];
 
@@ -181,4 +186,5 @@ export interface EventMap {
   "stats://tick": StatsTick;
   "bt://changed": null;
   "bt://pairing": PairingPrompt | null;
+  "updater://check": null;
 }

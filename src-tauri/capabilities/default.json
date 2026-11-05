@@ -5,6 +5,8 @@
   "windows": ["island-*"],
   "permissions": [
     "core:default",
-    "core:event:default"
+    "core:event:default",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

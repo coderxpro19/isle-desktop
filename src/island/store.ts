@@ -1,9 +1,17 @@
 import { create } from "zustand";
 import type { Backend } from "@/lib/backend";
-import type { BatteryState, ControlsState, MediaState, PairingPrompt, Settings, StatsTick, Weather } from "@/lib/types";
+import type { BatteryState, ControlsState, MediaState, PairingPrompt, Settings, StatsTick, UpdateInfo, Weather } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/types";
 
 export type Mode = "compact" | "peek" | "expanded";
+
+export type UpdateState =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "upToDate" }
+  | { kind: "available"; info: UpdateInfo }
+  | { kind: "installing"; info: UpdateInfo; progress: number | null }
+  | { kind: "error"; message: string; info?: UpdateInfo };
 export type Tab = "home" | "controls" | "weather" | "stats";
 /** Sub-page inside the Controls tab. */
 export type ControlsView = "main" | "wifi" | "bluetooth";
@@ -44,6 +52,7 @@ export interface IslandState {
   weatherError: string | null;
   controlsView: ControlsView;
   btPrompt: PairingPrompt | null;
+  update: UpdateState;
 
   setMode(mode: Mode): void;
   setTab(tab: Tab): void;
@@ -75,6 +84,7 @@ export const useIsland = create<IslandState>((set, get) => ({
   weatherError: null,
   controlsView: "main",
   btPrompt: null,
+  update: { kind: "idle" },
 
   // Collapsing resets to the home tab, like iOS widgets do.
   setMode: (mode) => set(mode === "compact" ? { mode, tab: "home", controlsView: "main" } : { mode }),

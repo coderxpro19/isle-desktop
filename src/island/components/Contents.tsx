@@ -9,6 +9,7 @@ import type { Tab } from "../store";
 import { ControlsPanel } from "./ControlsPanel";
 import { BatteryGlyph, BoltIcon, MoonIcon, NextIcon, NoteIcon, PauseIcon, PlayIcon, PrevIcon, WeatherGlyph } from "./icons";
 import { StatsPanel } from "./StatsPanel";
+import { UpdateBanner, UpdateDot } from "./UpdateBanner";
 import { WeatherPanel } from "./WeatherPanel";
 import { Marquee } from "./Marquee";
 import { SeekBar } from "./SeekBar";
@@ -102,6 +103,7 @@ export function CompactContent({ primary }: { primary: ActivityKind | null }) {
     <Row>
       <Clock className="text-[13px] font-semibold text-white/95" />
       <span className="flex items-center gap-2">
+        <UpdateDot />
         <FocusDot />
         <Battery showPercent={pct} />
       </span>
@@ -160,7 +162,12 @@ export function ExpandedContent({ primary, tab }: { primary: ActivityKind | null
     case "stats":
       return <StatsPanel />;
     case "home":
-      return primary === "music" ? <MusicPanel /> : <OverviewPanel />;
+      return (
+        <div className="flex h-full flex-col">
+          <UpdateBanner />
+          <div className="min-h-0 flex-1">{primary === "music" ? <MusicPanel /> : <OverviewPanel />}</div>
+        </div>
+      );
   }
 }
 

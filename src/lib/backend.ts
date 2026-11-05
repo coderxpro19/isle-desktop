@@ -1,6 +1,6 @@
 import type {
   Artwork, BatteryState, ControlAction, ControlsState, EventMap, MediaAction, MediaState, Rect, Settings, SettingsPage,
-  Weather, WeatherLocation, WifiNetwork, WifiConnectResult, BtDevice, BtAction,
+  Weather, WeatherLocation, WifiNetwork, WifiConnectResult, BtDevice, BtAction, UpdateInfo,
 } from "./types";
 
 /**
@@ -38,6 +38,10 @@ export interface Backend {
   btSetDiscovery(active: boolean): Promise<void>;
   btAction(id: string, action: BtAction): Promise<void>;
   btPairRespond(accept: boolean): Promise<void>;
+  /** Ask the release feed for a newer version. */
+  checkUpdate(): Promise<UpdateInfo | null>;
+  /** Download + install the update found by `checkUpdate`, then restart Isle. */
+  installUpdate(onProgress: (fraction: number | null) => void): Promise<void>;
   on<K extends keyof EventMap>(event: K, cb: (payload: EventMap[K]) => void): () => void;
 }
 

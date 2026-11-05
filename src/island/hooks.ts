@@ -188,3 +188,34 @@ export function useWeather() {
     };
   }, [backend, key, location, fahrenheit, visible, fetchedAt]);
 }
+
+const UPDATE_EVERY_MS = 6 * 3600_000;
+
+/** Check for updates shortly after start, every few hours, and on demand from the tray. */
+export function useUpdater() {
+  const backend = useIsland((s) => s.backend);
+  useEffect(() => {
+    if (!backend) return;
+    const run = async (manual: boolean) => {
+      const cur = useIsland.getState().update;
+      if (cur.kind === "installing") return;
+      if (manual) useIsland.setState({ update: { kind: "checking" }, mode: "expanded", tab: "home", hovered: true });
+      try {
+        const info = await backend.checkUpdate();
+        useIsland.setState({ update: info ? { kind: "available", info } : manual ? { kind: "upToDate" } : { kind: "idle" } });
+        if (!info && manual) setTimeout(() => useIsland.getState().update.kind === "upToDate" && useIsland.setState({ update: { kind: "idle" } }), 4000);
+      } catch (e) {
+        // Background checks fail quietly (offline etc.); manual ones say why.
+        if (manual) useIsland.setState({ update: { kind: "error", message: e instanceof Error ? e.message : String(e) } });
+      }
+    };
+    const first = setTimeout(() => void run(false), 8000);
+    const every = setInterval(() => void run(false), UPDATE_EVERY_MS);
+    const off = backend.on("updater://check", () => void run(true));
+    return () => {
+      clearTimeout(first);
+      clearInterval(every);
+      off();
+    };
+  }, [backend]);
+}

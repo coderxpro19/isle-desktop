@@ -4,12 +4,15 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { Backend } from "./backend";
 import type { EventMap } from "./types";
 import { fetchWeather, geocode } from "./weather";
+import { check, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 /** Events addressed to one island window rather than broadcast. */
 const WINDOW_SCOPED = new Set<keyof EventMap>(["island://hover"]);
 
 export function createTauriBackend(): Backend {
   const win = getCurrentWebviewWindow();
+  let pending: Update | null = null;
   return {
     kind: "tauri",
     batteryState: () => invoke("battery_state"),
@@ -34,6 +37,25 @@ export function createTauriBackend(): Backend {
     btSetDiscovery: (active) => invoke("bt_set_discovery", { active }),
     btAction: (id, action) => invoke("bt_action", { id, action }),
     btPairRespond: (accept) => invoke("bt_pair_respond", { accept }),
+    async checkUpdate() {
+      pending = await check();
+      return pending ? { version: pending.version, notes: pending.body ?? null } : null;
+    },
+    async installUpdate(onProgress) {
+      const update = pending ?? (await check());
+      if (!update) return;
+      let total = 0;
+      let done = 0;
+      await update.downloadAndInstall((e) => {
+        if (e.event === "Started") total = e.data.contentLength ?? 0;
+        else if (e.event === "Progress") {
+          done += e.data.chunkLength;
+          onProgress(total ? Math.min(1, done / total) : null);
+        } else if (e.event === "Finished") onProgress(1);
+      });
+      // On Windows the installer closes Isle itself; relaunch covers other cases.
+      await relaunch();
+    },
     weather: fetchWeather,
     geocode,
     on(event, cb) {

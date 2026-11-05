@@ -12,3 +12,5 @@ pub const STATS_TICK: &str = "stats://tick";
 pub const BT_CHANGED: &str = "bt://changed";
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const BT_PAIRING: &str = "bt://pairing";
+/// Tray → UI: user asked to check for updates now.
+pub const UPDATER_CHECK: &str = "updater://check";

@@ -286,6 +286,17 @@ export function createMockBackend(): Backend {
     async btPairRespond() {
       pairResolve?.();
     },
+    async checkUpdate() {
+      await sleep(400);
+      return new URLSearchParams(location.search).get("update") ? { version: "0.4.0", notes: "Faster island, new dock." } : null;
+    },
+    async installUpdate(onProgress) {
+      for (let i = 1; i <= 20; i++) {
+        await sleep(120);
+        onProgress(i / 20);
+      }
+      console.info("[mock] would restart into the new version");
+    },
     locationCurrent: async () => ({ latitude: 6.455, longitude: 3.394 }),
     async weather(_loc, fahrenheit): Promise<Weather> {
       const c = (v: number) => (fahrenheit ? Math.round(v * 1.8 + 32) : v);

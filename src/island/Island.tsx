@@ -5,12 +5,14 @@ import { BUBBLE, BUBBLE_GAP, PILL_TOP, TAB_BAR_H, deriveActivities, pillSize, ty
 import { CompactContent, ExpandedContent, PeekContent, useAccent } from "./components/Contents";
 import { BoltIcon, NoteIcon } from "./components/icons";
 import { TabBar } from "./components/TabBar";
+import { UPDATE_BANNER_H, useShowUpdateBanner } from "./components/UpdateBanner";
 import {
   useBackendSync,
   useClockTicker,
   useHoverIntent,
   usePanelDemand,
   useTransientExpiry,
+  useUpdater,
   useVisualizerDemand,
   useWeather,
 } from "./hooks";
@@ -28,6 +30,7 @@ export function Island() {
   useVisualizerDemand();
   usePanelDemand();
   useWeather();
+  useUpdater();
 
   const mode = useIsland((s) => s.mode);
   const media = useIsland((s) => s.media);
@@ -50,7 +53,13 @@ export function Island() {
   const controlsView = useIsland((s) => s.controlsView);
   const base = pillSize(mode, primary, cornerRadius, tab);
   // Wi-Fi / Bluetooth lists get extra room.
-  const size = mode === "expanded" && tab === "controls" && controlsView !== "main" ? { ...base, h: TAB_BAR_H + 316 } : base;
+  const banner = useShowUpdateBanner();
+  const size =
+    mode === "expanded" && tab === "controls" && controlsView !== "main"
+      ? { ...base, h: TAB_BAR_H + 316 }
+      : mode === "expanded" && tab === "home" && banner
+        ? { ...base, h: base.h + UPDATE_BANNER_H }
+        : base;
 
   const spring: Transition = reduceMotion
     ? { duration: 0 }
