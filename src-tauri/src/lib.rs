@@ -74,11 +74,16 @@ pub fn run() {
             island::create_windows(&handle)?;
             island::spawn_hit_tester(handle.clone());
             fullscreen::spawn(handle.clone());
-            shell::taskbar::start_guards();
-            dock::ensure_default_pins(&handle);
-            dock::create_windows(&handle)?;
-            dock::apply_settings(&handle);
+            // Tray first: whatever happens next, the user can quit or open the logs.
             tray::create(&handle)?;
+            shell::taskbar::start_guards();
+            // The dock is optional: if it fails, the island keeps working and
+            // the taskbar is left alone.
+            dock::ensure_default_pins(&handle);
+            match dock::create_windows(&handle) {
+                Ok(()) => dock::apply_settings(&handle),
+                Err(e) => log::error!("dock unavailable: {e}"),
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

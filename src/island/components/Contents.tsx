@@ -71,6 +71,18 @@ export function CompactContent({ primary }: { primary: ActivityKind | null }) {
   const accent = useAccent();
   const transient = useIsland((s) => s.transient);
 
+  if (primary === "update" && transient?.kind === "update") {
+    return (
+      <Row>
+        <span className="flex items-center gap-2 text-[13px] font-semibold text-[#7cb5ff]">
+          <span className="h-2 w-2 rounded-full bg-[#5aa2ff]" />
+          Update available
+        </span>
+        <span className="text-[12.5px] font-medium text-white/70">Isle {transient.version}</span>
+      </Row>
+    );
+  }
+
   if (primary === "charging" || primary === "lowBattery") {
     const charging = primary === "charging";
     return (
@@ -81,9 +93,9 @@ export function CompactContent({ primary }: { primary: ActivityKind | null }) {
         </span>
         <span className="flex items-center gap-1.5">
           <span className={`text-[13px] font-semibold tabular-nums ${charging ? "text-ok" : "text-danger"}`}>
-            {transient?.percent ?? "–"}%
+            {transient && "percent" in transient ? (transient.percent ?? "–") : "–"}%
           </span>
-          <BatteryGlyph percent={transient?.percent ?? null} charging={charging} saver={false} />
+          <BatteryGlyph percent={transient && "percent" in transient ? transient.percent : null} charging={charging} saver={false} />
         </span>
       </Row>
     );
@@ -93,7 +105,10 @@ export function CompactContent({ primary }: { primary: ActivityKind | null }) {
     return (
       <Row>
         <Artwork size={22} radius={6} />
-        <Clock className="text-[13px] font-semibold text-white/90" />
+        <span className="flex items-center gap-1.5">
+          <UpdateDot />
+          <Clock className="text-[13px] font-semibold text-white/90" />
+        </span>
         <Visualizer height={14} color={accent} playing={media.playing} />
       </Row>
     );

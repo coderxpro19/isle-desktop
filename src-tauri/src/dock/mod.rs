@@ -7,6 +7,8 @@ mod win;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, OnceLock};
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindowBuilder,
     WindowEvent,
@@ -305,53 +307,105 @@ pub fn bar_height(icon_size: u32) -> f64 {
     icon_size as f64 + 28.0
 }
 
+/// Set once the dock UI has painted. Until then the taskbar is never touched,
+/// so a dock that fails to load can't leave the user without a taskbar.
+static DOCK_READY: AtomicBool = AtomicBool::new(false);
+
+/// What the shell thread should make true.
+#[derive(Debug, Clone, Copy)]
+struct ShellJob {
+    hide_taskbar: bool,
+    hwnd: Option<isize>,
+    /// `Some(strip)` reserves space; `None` releases it.
+    reserve: Option<appbar::PxRect>,
+}
+
+static SHELL_TX: OnceLock<mpsc::Sender<ShellJob>> = OnceLock::new();
+
+/// Shell calls (SHAppBarMessage, ShowWindow on Explorer's taskbar) wait on
+/// Explorer. They run on their own thread so a busy Explorer can never freeze
+/// Isle's UI thread.
+fn shell_thread() -> &'static mpsc::Sender<ShellJob> {
+    SHELL_TX.get_or_init(|| {
+        let (tx, rx) = mpsc::channel::<ShellJob>();
+        std::thread::Builder::new()
+            .name("isle-shell".into())
+            .spawn(move || {
+                let mut reserved: Option<(isize, appbar::PxRect)> = None;
+                while let Ok(mut job) = rx.recv() {
+                    // Only the latest request matters.
+                    while let Ok(next) = rx.try_recv() {
+                        job = next;
+                    }
+                    if job.hide_taskbar {
+                        taskbar::hide();
+                    } else {
+                        taskbar::restore();
+                    }
+                    match (job.hwnd, job.reserve) {
+                        (Some(h), Some(strip)) => {
+                            if reserved != Some((h, strip)) {
+                                appbar::reserve(h, strip);
+                                reserved = Some((h, strip));
+                            }
+                        }
+                        (Some(h), None) if reserved.is_some() => {
+                            reserved = None;
+                            appbar::release(h);
+                        }
+                        _ => {}
+                    }
+                }
+            })
+            .expect("spawn shell thread");
+        tx
+    })
+}
+
+/// Called when the dock UI has painted its first frame.
+pub fn mark_dock_ready(app: &AppHandle) {
+    DOCK_READY.store(true, Ordering::SeqCst);
+    apply_settings(app);
+}
+
 /// Make the dock, the taskbar and the reserved screen space match the settings.
+/// Never blocks: shell work is handed to the shell thread.
 pub fn apply_settings(app: &AppHandle) {
     let s = app.state::<SettingsStore>().get().dock;
     let Some(win) = app.get_webview_window(DOCK_LABEL) else {
         return;
     };
-    let hwnd = native_hwnd(&win);
+    let ready = DOCK_READY.load(Ordering::SeqCst);
+    let on = s.enabled && ready;
     if !s.enabled {
         let _ = win.hide();
-        if let Some(h) = hwnd {
-            appbar::release(h);
-        }
-        taskbar::restore();
-        return;
-    }
-    if crate::fullscreen::ISLAND_READY.load(std::sync::atomic::Ordering::Relaxed) {
+    } else if ready {
         let _ = win.show();
     }
-    if s.replace_taskbar {
-        taskbar::hide();
-    } else {
-        taskbar::restore();
-    }
-    if let (Some(h), Ok(Some(mon))) = (hwnd, win.current_monitor()) {
-        if s.mode == DockMode::Fixed {
-            let p = mon.position();
-            let z = mon.size();
+    let reserve = match win.current_monitor() {
+        Ok(Some(mon)) if on && s.mode == DockMode::Fixed => {
+            let (p, z) = (mon.position(), mon.size());
             let m = appbar::PxRect {
                 left: p.x,
                 top: p.y,
                 right: p.x + z.width as i32,
                 bottom: p.y + z.height as i32,
             };
-            appbar::reserve(
-                h,
-                appbar::bottom_strip(
-                    m,
-                    (bar_height(s.icon_size) * mon.scale_factor()).round() as i32,
-                ),
-            );
-        } else {
-            appbar::release(h);
+            Some(appbar::bottom_strip(
+                m,
+                (bar_height(s.icon_size) * mon.scale_factor()).round() as i32,
+            ))
         }
-    }
+        _ => None,
+    };
+    let _ = shell_thread().send(ShellJob {
+        hide_taskbar: on && s.replace_taskbar,
+        hwnd: native_hwnd(&win),
+        reserve,
+    });
 }
 
-/// Undo everything on exit.
+/// Undo everything on exit (synchronous: the process is about to end).
 pub fn teardown(app: &AppHandle) {
     if let Some(h) = app
         .get_webview_window(DOCK_LABEL)

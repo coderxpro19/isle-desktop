@@ -6,7 +6,7 @@ import { PAUSED_LINGER_MS } from "./store";
  * bubbles beside it (like two activities on an iPhone). Later phases add
  * timers, downloads, calls, etc. by extending `ActivityKind` and `derive`.
  */
-export type ActivityKind = "music" | "charging" | "lowBattery";
+export type ActivityKind = "music" | "charging" | "lowBattery" | "update";
 
 export interface Activity {
   id: string;
@@ -32,7 +32,7 @@ export interface Size {
 
 /** Target pill geometry for a given state. Hit-testing uses these targets too. */
 export function pillSize(mode: Mode, primary: ActivityKind | null, radius: number, tab: Tab = "home"): Size {
-  if (primary === "charging" || primary === "lowBattery") {
+  if (primary === "charging" || primary === "lowBattery" || primary === "update") {
     // Transients are wide and short in compact, or take over the peek.
     return mode === "expanded" ? expanded(primary, radius, tab) : { w: 320, h: 36, r: 18 };
   }

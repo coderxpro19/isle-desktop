@@ -202,14 +202,20 @@ export function useUpdater() {
       if (manual) useIsland.setState({ update: { kind: "checking" }, mode: "expanded", tab: "home", hovered: true });
       try {
         const info = await backend.checkUpdate();
+        const prev = useIsland.getState().update;
+        const isNew = info && !(prev.kind === "available" && prev.info.version === info.version);
         useIsland.setState({ update: info ? { kind: "available", info } : manual ? { kind: "upToDate" } : { kind: "idle" } });
+        // Announce a newly found update on the pill for a few seconds.
+        if (isNew && !manual && !useIsland.getState().settings.island.focusMode) {
+          useIsland.setState({ transient: { kind: "update", version: info.version, until: Date.now() + 6000 } });
+        }
         if (!info && manual) setTimeout(() => useIsland.getState().update.kind === "upToDate" && useIsland.setState({ update: { kind: "idle" } }), 4000);
       } catch (e) {
         // Background checks fail quietly (offline etc.); manual ones say why.
         if (manual) useIsland.setState({ update: { kind: "error", message: e instanceof Error ? e.message : String(e) } });
       }
     };
-    const first = setTimeout(() => void run(false), 8000);
+    const first = setTimeout(() => void run(false), 5000);
     const every = setInterval(() => void run(false), UPDATE_EVERY_MS);
     const off = backend.on("updater://check", () => void run(true));
     return () => {

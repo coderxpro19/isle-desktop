@@ -22,7 +22,8 @@ export const STATS_HISTORY = 60;
 /** Short-lived, attention-grabbing states (iPhone-style "alerts"). */
 export type Transient =
   | { kind: "charging"; percent: number | null; until: number }
-  | { kind: "lowBattery"; percent: number; until: number };
+  | { kind: "lowBattery"; percent: number; until: number }
+  | { kind: "update"; version: string; until: number };
 
 export interface IslandState {
   backend: Backend | null;

@@ -25,6 +25,11 @@ pub fn open_settings(page: String) -> Result<(), String> {
     platform::open(target)
 }
 
+/// Open a folder or file in Explorer (used by the tray's "Open logs").
+pub fn open_path(path: &std::path::Path) -> Result<(), String> {
+    platform::open(&path.to_string_lossy())
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Position {

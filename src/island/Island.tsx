@@ -109,7 +109,12 @@ export function Island() {
         transition={spring}
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
-        onClick={() => mode !== "expanded" && setMode("expanded")}
+        onClick={() => {
+          if (mode === "expanded") return;
+          // An update alert hands over to the banner on the Home tab.
+          if (useIsland.getState().transient?.kind === "update") useIsland.setState({ transient: null, tab: "home" });
+          setMode("expanded");
+        }}
       >
         <AnimatePresence initial={false}>
           {expanded && (

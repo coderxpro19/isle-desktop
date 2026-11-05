@@ -63,16 +63,13 @@ pub fn island_ready(window: tauri::Window) -> Result<(), String> {
         crate::fullscreen::ISLAND_READY.store(true, std::sync::atomic::Ordering::Relaxed);
     }
     if window.label().starts_with("dock-") {
-        use tauri::Manager;
-        if !window
-            .app_handle()
-            .state::<SettingsStore>()
-            .get()
-            .dock
-            .enabled
-        {
-            return Ok(());
-        }
+        // The dock decides its own visibility (enabled? mode?) and only then
+        // takes over from the taskbar.
+        window
+            .set_ignore_cursor_events(true)
+            .map_err(|e| e.to_string())?;
+        crate::dock::mark_dock_ready(window.app_handle());
+        return Ok(());
     }
     window.show().map_err(|e| e.to_string())?;
     // Start fully click-through; the hit tester takes over from here.
