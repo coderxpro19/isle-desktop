@@ -19,7 +19,7 @@ export function SettingsApp() {
   const [backend, setBackend] = useState<Backend | null>(null);
   const [s, setS] = useState<Settings | null>(null);
   const [section, setSection] = useState<Section>(() => {
-    const q = new URLSearchParams(location.search).get("section") as Section | null;
+    const q = ((window as { __ISLE_SECTION?: string }).__ISLE_SECTION ?? new URLSearchParams(location.search).get("section")) as Section | null;
     return q && SECTIONS.some((x) => x.id === q) ? q : "general";
   });
 

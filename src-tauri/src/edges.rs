@@ -38,8 +38,8 @@ pub fn edge_pos(
     (x.round() as i32, (mon_y + (mon_h - h) / 2.0).round() as i32)
 }
 
-fn base(app: &AppHandle, label: &str, url: &str, w: f64, h: f64) -> tauri::Result<WebviewWindow> {
-    WebviewWindowBuilder::new(app, label, WebviewUrl::App(url.into()))
+fn base(app: &AppHandle, label: &str, w: f64, h: f64) -> tauri::Result<WebviewWindow> {
+    WebviewWindowBuilder::new(app, label, WebviewUrl::default())
         .title("Isle")
         .inner_size(w, h)
         .transparent(true)
@@ -84,26 +84,19 @@ pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
     }) else {
         return Ok(());
     };
+    // The UI routes by window label (query strings don't resolve as assets).
     let windows = [
-        (
-            "edge-l-0",
-            "index.html?view=edge&side=left",
-            Some(Side::Left),
-        ),
-        (
-            "edge-r-0",
-            "index.html?view=edge&side=right",
-            Some(Side::Right),
-        ),
-        ("corners-0", "index.html?view=corners", None),
+        ("edge-l-0", Some(Side::Left)),
+        ("edge-r-0", Some(Side::Right)),
+        ("corners-0", None),
     ];
-    for (label, url, side) in windows {
+    for (label, side) in windows {
         let (w, h) = if side.is_some() {
             (EDGE_W, EDGE_H)
         } else {
             (m.size().width as f64 / m.scale_factor(), CORNERS_H)
         };
-        let win = base(app, label, url, w, h)?;
+        let win = base(app, label, w, h)?;
         place(&win, &m, side);
         let w2 = win.clone();
         win.on_window_event(move |e| {

@@ -5,8 +5,11 @@ use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 pub const LABEL: &str = "settings";
 
 /// Open (or focus) Settings, optionally on a section ("island", "dock"…).
+///
+/// Async on purpose: creating a window from a synchronous command deadlocks
+/// the main thread on Windows (blank window, frozen app).
 #[tauri::command]
-pub fn isle_settings_open(app: AppHandle, section: Option<String>) -> Result<(), String> {
+pub async fn isle_settings_open(app: AppHandle, section: Option<String>) -> Result<(), String> {
     open(&app, section.as_deref())
 }
 
@@ -27,8 +30,11 @@ pub fn open(app: &AppHandle, section: Option<&str>) -> Result<(), String> {
     WebviewWindowBuilder::new(
         app,
         LABEL,
-        WebviewUrl::App(format!("index.html?section={sec}").into()),
+        // Plain index.html: the UI routes by window label. A query string in
+        // the asset path doesn't resolve on Windows (blank page).
+        WebviewUrl::default(),
     )
+    .initialization_script(format!("window.__ISLE_SECTION = {sec:?};"))
     .title("Isle Settings")
     .inner_size(860.0, 600.0)
     .min_inner_size(720.0, 480.0)

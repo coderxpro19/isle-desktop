@@ -1,7 +1,7 @@
 {
   "name": "isle-desktop",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Isle — a Dynamic Island and dock for Windows 10/11",
   "type": "module",
   "scripts": {
