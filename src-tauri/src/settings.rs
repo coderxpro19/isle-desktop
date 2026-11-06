@@ -93,6 +93,8 @@ pub struct IslandSettings {
     /// Status widgets either side of the clock in the open island.
     pub widgets_left: Vec<String>,
     pub widgets_right: Vec<String>,
+    /// A notch on every display, not just the main one.
+    pub all_monitors: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -162,6 +164,20 @@ pub struct DockSettings {
     pub pinned: Option<Vec<PinnedApp>>,
     /// No bar behind the icons.
     pub icon_only: bool,
+    /// Start button icon: a preset id ("isle", "windows", …) or a PNG data URL.
+    pub start_icon: String,
+    /// Divider between pinned and other open apps.
+    pub app_separator: bool,
+    /// Task View button beside Start.
+    pub task_view: bool,
+    /// Win+1…9 open the dock's pinned apps.
+    pub win_numbers: bool,
+    /// Rest on the bottom edge this long before a hidden dock appears (ms).
+    pub peek_delay_ms: u32,
+    /// Window thumbnails when hovering an app.
+    pub previews: bool,
+    /// Downloads and Recycle Bin at the end of the dock.
+    pub extras: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -182,6 +198,13 @@ impl Default for DockSettings {
             icon_size: 40,
             pinned: None,
             icon_only: true,
+            start_icon: "isle".into(),
+            app_separator: true,
+            task_view: false,
+            win_numbers: true,
+            peek_delay_ms: 200,
+            previews: true,
+            extras: true,
         }
     }
 }
@@ -253,6 +276,7 @@ impl Default for IslandSettings {
             compact_mode: true,
             widgets_left: vec!["weather".into(), "cpu".into()],
             widgets_right: vec!["battery".into(), "ram".into()],
+            all_monitors: true,
         }
     }
 }
@@ -356,6 +380,7 @@ impl SettingsStore {
 /// Push settings out to every subsystem and window.
 pub fn apply(app: &AppHandle, s: &Settings) {
     crate::hud::set_enabled(s.island.volume_hud);
+    crate::hud::set_win_numbers(s.dock.enabled && s.dock.win_numbers);
     crate::clipboard::set_enabled(s.island.clipboard_history);
     crate::autostart::set(s.general.start_with_windows);
     crate::island::reposition(app);

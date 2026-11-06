@@ -66,6 +66,7 @@ export interface Settings {
     compactMode: boolean;
     widgetsLeft: WidgetId[];
     widgetsRight: WidgetId[];
+    allMonitors: boolean;
   };
   appearance: {
     accent: string;
@@ -109,6 +110,14 @@ export interface DockSettings {
   iconSize: number;
   pinned: PinnedApp[] | null;
   iconOnly: boolean;
+  /** Preset id ("isle", "windows", "flower", "sun", "grid") or a PNG data URL. */
+  startIcon: string;
+  appSeparator: boolean;
+  taskView: boolean;
+  winNumbers: boolean;
+  peekDelayMs: number;
+  previews: boolean;
+  extras: boolean;
 }
 
 export interface WeatherLocation {
@@ -144,10 +153,26 @@ export const DEFAULT_SETTINGS: Settings = {
     compactMode: true,
     widgetsLeft: ["weather", "cpu"],
     widgetsRight: ["battery", "ram"],
+    allMonitors: true,
   },
   appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false, surface: "#000000", screenCorners: true, backgroundOpacity: 1 },
   weather: { location: null, fahrenheit: false },
-  dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 40, pinned: null, iconOnly: true },
+  dock: {
+    enabled: true,
+    replaceTaskbar: true,
+    mode: "fixed",
+    magnification: true,
+    iconSize: 40,
+    pinned: null,
+    iconOnly: true,
+    startIcon: "isle",
+    appSeparator: true,
+    taskView: false,
+    winNumbers: true,
+    peekDelayMs: 200,
+    previews: true,
+    extras: true,
+  },
   calendar: { feeds: [] },
   general: { startWithWindows: true },
   overlays: { volumeEdge: true, brightnessHud: true, brightnessEdge: true },
@@ -225,7 +250,7 @@ export interface LauncherApp {
 
 export type WindowAction = "activate" | "minimize" | "close";
 export type PowerAction = "lock" | "sleep" | "signOut" | "restart" | "shutdown";
-export type Place = "downloads" | "documents" | "recycle" | "this-pc";
+export type Place = "downloads" | "documents" | "recycle" | "this-pc" | "taskview";
 
 export interface PreviewSlot {
   hwnd: number;
@@ -332,6 +357,7 @@ export interface EventMap {
   "dock://apps": DockApp[];
   "dock://overlap": boolean;
   "tray://icons": TrayIcon[];
+  "dock://hotkey": number;
   "hud://show": Hud;
   "notify://new": Notice;
   "clip://changed": Clip[];

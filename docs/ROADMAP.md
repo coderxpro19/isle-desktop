@@ -76,3 +76,8 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - Edge overlays: volume HUD (left edge), brightness HUD (right edge), slide in on edge hover, draggable
 - Rounded top screen corners; icon-only dock; frameless Settings (General, Appearance, Notch, Dock, Overlays, Calendar, About)
 
+## v0.12.0 — Dock parity + every display ✅
+- Start menu icon presets or your own image; Task View button; App separator; Dock extras toggle
+- Win+1…9 open the dock's pinned apps; peek delay for hidden docks; app previews toggle
+- A notch (and rounded corners) on every connected display, following hot-plugs; "Show on all displays" setting
+

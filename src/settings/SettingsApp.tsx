@@ -3,6 +3,7 @@ import { getBackend, isTauri, type Backend } from "@/lib/backend";
 import { DEFAULT_SETTINGS, type DockMode, type NotchBehavior, type Settings, type UpdateInfo, type WidgetId } from "@/lib/types";
 import { WIDGETS } from "@/island/components/Header";
 import { THEMES, ACCENTS, themeOf } from "./themes";
+import { START_PRESETS, StartGlyph, iconFromFile } from "@/dock/startIcons";
 
 type Section = "general" | "appearance" | "notch" | "dock" | "overlays" | "calendar" | "about";
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
@@ -406,6 +407,9 @@ function NotchSection({ s, update }: Props) {
         <Row icon="timer" label="Peek Delay" hint={`Rest on the notch for ${isl.peekDelayMs}ms to reveal.`}>
           <Range value={isl.peekDelayMs} min={0} max={800} step={50} onChange={(peekDelayMs) => set({ peekDelayMs })} unit="ms" />
         </Row>
+        <Row icon="M3 5h12v9H3zM9 18h0M15 9h6v10h-6z" label="Show on All Displays" hint="A notch on every screen, not just the main one.">
+          <Switch on={isl.allMonitors} onChange={(allMonitors) => set({ allMonitors })} />
+        </Row>
         <Row icon="panel" label="Remember Last Panel" hint="Reopen the page you last used; off always opens the Control Centre.">
           <Switch on={isl.rememberPanel} onChange={(rememberPanel) => set({ rememberPanel })} />
         </Row>
@@ -512,36 +516,99 @@ function Mini({ label, onClick, disabled, children }: { label: string; onClick()
 function DockSection({ s, update }: Props) {
   const d = s.dock;
   const set = (patch: Partial<Settings["dock"]>) => update((x) => ({ ...x, dock: { ...x.dock, ...patch } }));
+  const file = useRef<HTMLInputElement>(null);
+  const custom = d.startIcon.startsWith("data:");
   return (
-    <Card title="Dock">
-      <Row icon="dock" label="Isle Dock" hint="Replace the Windows taskbar with Isle's dock.">
-        <Switch on={d.enabled && d.replaceTaskbar} onChange={(on) => set({ enabled: on, replaceTaskbar: on })} />
-      </Row>
-      <Row icon="eye" label="Behavior" hint="Fixed: always shown. Smart: hides when a window needs the space. Peek: slides away until you touch the bottom edge.">
-        <Segmented<DockMode>
-          value={d.mode}
-          disabled={!d.enabled}
-          options={[
-            ["fixed", "Fixed"],
-            ["smart", "Smart"],
-            ["autoHide", "Peek"],
-          ]}
-          onChange={(mode) => set({ mode })}
-        />
-      </Row>
-      <Row icon="bar" label="Icon Only" hint="Remove the bar background behind the icons.">
-        <Switch on={d.iconOnly} onChange={(iconOnly) => set({ iconOnly })} />
-      </Row>
-      <Row icon="size" label="Icon Size">
-        <Range value={d.iconSize} min={24} max={64} step={2} onChange={(iconSize) => set({ iconSize })} unit="px" />
-      </Row>
-      <Row icon="magnify" label="Magnify on Hover">
-        <Switch on={d.magnification} onChange={(magnification) => set({ magnification })} />
-      </Row>
-      <Row icon="dock" label="Show the Dock without Replacing the Taskbar" hint="Keep both.">
-        <Switch on={d.enabled && !d.replaceTaskbar} onChange={(on) => set(on ? { enabled: true, replaceTaskbar: false } : { replaceTaskbar: true })} />
-      </Row>
-    </Card>
+    <>
+      <Card title="Dock">
+        <Row icon="dock" label="Isle Dock" hint="Replace the Windows taskbar.">
+          <Switch on={d.enabled && d.replaceTaskbar} onChange={(on) => set({ enabled: on, replaceTaskbar: on })} />
+        </Row>
+        <Row icon="eye" label="Behavior" hint="Fixed: always shown. Smart: hides when a window needs the space. Peek: hidden until you touch the bottom edge.">
+          <Segmented<DockMode>
+            value={d.mode}
+            disabled={!d.enabled}
+            options={[
+              ["fixed", "Fixed"],
+              ["smart", "Smart"],
+              ["autoHide", "Peek"],
+            ]}
+            onChange={(mode) => set({ mode })}
+          />
+        </Row>
+        <Row icon="timer" label="Peek Delay" hint={`Rest on the bottom edge for ${d.peekDelayMs}ms to reveal.`}>
+          <Range value={d.peekDelayMs} min={0} max={800} step={50} onChange={(peekDelayMs) => set({ peekDelayMs })} unit="ms" />
+        </Row>
+        <Row icon="eye" label="Show App Previews" hint="Window thumbnails when you hover an app.">
+          <Switch on={d.previews} onChange={(previews) => set({ previews })} />
+        </Row>
+        <Row icon="bar" label="Icon Only" hint="Remove the bar background and padding.">
+          <Switch on={d.iconOnly} onChange={(iconOnly) => set({ iconOnly })} />
+        </Row>
+        <Row icon="M12 4v16" label="App Separator" hint="Show a divider before unpinned apps.">
+          <Switch on={d.appSeparator} onChange={(appSeparator) => set({ appSeparator })} />
+        </Row>
+        <Row icon="M3 6h11v12H3zM17 8h2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" label="Task View" hint="Show the Task View button beside Start.">
+          <Switch on={d.taskView} onChange={(taskView) => set({ taskView })} />
+        </Row>
+        <Row icon="M4 6h16v12H4zM8 10h1M12 10h1M16 10h1M8 14h8" label="Win+Number Shortcuts" hint="Open pinned apps with Win+1 through Win+9.">
+          <Switch on={d.winNumbers} onChange={(winNumbers) => set({ winNumbers })} />
+        </Row>
+        <Row icon="M4 7h16v12H4zM9 7V5h6v2" label="Dock Extras" hint="Downloads and the Recycle Bin at the end of the dock.">
+          <Switch on={d.extras} onChange={(extras) => set({ extras })} />
+        </Row>
+        <Row icon="size" label="Icon Size">
+          <Range value={d.iconSize} min={24} max={64} step={2} onChange={(iconSize) => set({ iconSize })} unit="px" />
+        </Row>
+        <Row icon="magnify" label="Magnify on Hover">
+          <Switch on={d.magnification} onChange={(magnification) => set({ magnification })} />
+        </Row>
+      </Card>
+      <Card title="Start Menu Icon">
+        <div className="flex flex-wrap items-center gap-2.5 p-4">
+          {START_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              title={p.label}
+              onClick={() => set({ startIcon: p.id })}
+              className={`grid h-14 w-14 place-items-center rounded-xl bg-[var(--well)] ring-2 transition ${d.startIcon === p.id ? "ring-[#3aa0ff]" : "ring-transparent hover:ring-[var(--line)]"}`}
+            >
+              <StartGlyph icon={p.id} size={34} />
+            </button>
+          ))}
+          {custom && (
+            <button type="button" title="Your image" className="grid h-14 w-14 place-items-center rounded-xl bg-[var(--well)] ring-2 ring-[#3aa0ff]">
+              <StartGlyph icon={d.startIcon} size={34} />
+            </button>
+          )}
+          <input
+            ref={file}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) set({ startIcon: await iconFromFile(f) });
+            }}
+          />
+          <button type="button" title="Use your own image" onClick={() => file.current?.click()} className="grid h-14 w-14 place-items-center rounded-xl border border-dashed border-[var(--line)] text-[22px] text-[var(--dim)] hover:text-[var(--fg)]">
+            +
+          </button>
+          <button type="button" title="Reset" onClick={() => set({ startIcon: "isle" })} className="grid h-14 w-14 place-items-center rounded-xl border border-dashed border-[var(--line)] text-[var(--dim)] hover:text-[var(--fg)]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d={ICONS.reset} />
+            </svg>
+          </button>
+        </div>
+      </Card>
+      <Card title="Taskbar">
+        <Row icon="dock" label="Keep the Windows Taskbar Too" hint="Show the dock without hiding the taskbar.">
+          <Switch on={d.enabled && !d.replaceTaskbar} onChange={(on) => set(on ? { enabled: true, replaceTaskbar: false } : { replaceTaskbar: true })} />
+        </Row>
+      </Card>
+    </>
   );
 }
 

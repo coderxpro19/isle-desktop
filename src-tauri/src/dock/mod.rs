@@ -643,6 +643,7 @@ pub fn dock_open_place(place: String) -> Result<(), String> {
         "documents" => "shell:Personal",
         "recycle" => "shell:RecycleBinFolder",
         "this-pc" => "shell:MyComputerFolder",
+        "taskview" => "shell:::{3080F90E-D7AD-11D9-BD98-0000947B0257}",
         _ => return Err("unknown place".into()),
     };
     #[cfg(windows)]

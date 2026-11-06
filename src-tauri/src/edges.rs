@@ -4,13 +4,36 @@
 //! (a thin strip at the edge, or the visible slider).
 
 use tauri::{
-    AppHandle, Monitor, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
+    AppHandle, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
 };
 
 /// Logical size of each edge HUD window.
 pub const EDGE_W: f64 = 76.0;
 pub const EDGE_H: f64 = 320.0;
+pub const CORNERS_PREFIX: &str = "corners-";
+
+/// Rounded top corners for display `idx` (created once, re-placed after changes).
+pub fn ensure_corners(app: &AppHandle, idx: usize, m: &Monitor) {
+    let label = format!("{CORNERS_PREFIX}{idx}");
+    let win = match app.get_webview_window(&label) {
+        Some(w) => w,
+        None => match base(
+            app,
+            &label,
+            m.size().width as f64 / m.scale_factor(),
+            CORNERS_H,
+        ) {
+            Ok(w) => w,
+            Err(e) => {
+                log::warn!("{label}: {e}");
+                return;
+            }
+        },
+    };
+    place(&win, m, None);
+}
+
 /// Logical height of the corners strip.
 pub const CORNERS_H: f64 = 24.0;
 
@@ -88,7 +111,6 @@ pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
     let windows = [
         ("edge-l-0", Some(Side::Left)),
         ("edge-r-0", Some(Side::Right)),
-        ("corners-0", None),
     ];
     for (label, side) in windows {
         let (w, h) = if side.is_some() {

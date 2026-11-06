@@ -5,6 +5,7 @@ import type { DockApp, Rect } from "@/lib/types";
 import { DockMenu } from "./DockMenu";
 import { Previews } from "./Previews";
 import { TrayGroup, trayWidth } from "./Tray";
+import { StartGlyph } from "./startIcons";
 import { dockVisible, magnify, useDock } from "./store";
 
 const PAD = 5; // horizontal padding around each icon
@@ -15,6 +16,7 @@ const BOTTOM = 8;
 /** Items along the bar, in order. */
 type Item =
   | { kind: "start" }
+  | { kind: "taskview" }
   | { kind: "app"; app: DockApp }
   | { kind: "sep" }
   | { kind: "tray" }
@@ -34,10 +36,17 @@ export function Dock() {
 
   const apps = useDock((s) => s.apps);
   const trayCount = useDock((s) => s.tray.length);
-  const { iconSize, magnification, mode } = useDock((s) => s.settings.dock);
+  const { iconSize, magnification, mode, appSeparator, taskView, extras, peekDelayMs } = useDock((s) => s.settings.dock);
   const surface = useDock((s) => s.settings.appearance.surface);
   const iconOnly = useDock((s) => s.settings.dock.iconOnly);
-  const hovered = useDock((s) => s.hovered);
+  const rawHovered = useDock((s) => s.hovered);
+  // A hidden dock waits for the cursor to rest on the bottom edge (peek delay).
+  const [hovered, setHovered] = useState(false);
+  useEffect(() => {
+    if (!rawHovered) return setHovered(false);
+    const t = setTimeout(() => setHovered(true), mode === "fixed" ? 0 : Math.max(0, peekDelayMs));
+    return () => clearTimeout(t);
+  }, [rawHovered, mode, peekDelayMs]);
   const overlap = useDock((s) => s.overlap);
   const menu = useDock((s) => s.menu);
   const preview = useDock((s) => s.preview);
@@ -46,17 +55,20 @@ export function Dock() {
   const items: Item[] = useMemo(() => {
     const pinned = apps.filter((a) => a.pinned);
     const running = apps.filter((a) => !a.pinned);
+    const tail: Item[] = [
+      ...(trayCount ? [{ kind: "tray" as const }] : []),
+      ...(extras ? [{ kind: "place" as const, place: "downloads" as const }, { kind: "place" as const, place: "recycle" as const }] : []),
+    ];
     return [
       { kind: "start" },
+      ...(taskView ? [{ kind: "taskview" as const }] : []),
       { kind: "sep" },
       ...pinned.map((app) => ({ kind: "app" as const, app })),
-      ...(running.length ? [{ kind: "sep" as const }, ...running.map((app) => ({ kind: "app" as const, app }))] : []),
-      { kind: "sep" },
-      ...(trayCount ? [{ kind: "tray" as const }, { kind: "sep" as const }] : []),
-      { kind: "place", place: "downloads" },
-      { kind: "place", place: "recycle" },
+      ...(running.length && appSeparator && pinned.length ? [{ kind: "sep" as const }] : []),
+      ...running.map((app) => ({ kind: "app" as const, app })),
+      ...(tail.length ? [{ kind: "sep" as const }, ...tail] : []),
     ];
-  }, [apps, trayCount]);
+  }, [apps, trayCount, appSeparator, taskView, extras]);
 
   // Base layout (no magnification) — distances are measured against it so the
   // effect never feeds back on itself.
@@ -116,8 +128,9 @@ export function Dock() {
             );
           if (it.kind === "sep") return <div key={`sep${i}`} className="mx-[6px] mb-[14px] h-[60%] w-px self-end bg-white/15" style={{ height: iconSize * 0.7 }} />;
           return (
-            <Slot key={it.kind === "app" ? it.app.key : it.kind === "place" ? it.place : "start"} width={slot * scale - (scale - 1) * PAD * 2}>
+            <Slot key={it.kind === "app" ? it.app.key : it.kind === "place" ? it.place : it.kind} width={slot * scale - (scale - 1) * PAD * 2}>
               {it.kind === "start" && <StartButton size={iconSize * scale} />}
+              {it.kind === "taskview" && <TaskViewButton size={iconSize * scale} />}
               {it.kind === "app" && <AppIcon app={it.app} size={iconSize * scale} centreX={baseCentres[i]!} />}
               {it.kind === "place" && <PlaceIcon place={it.place} size={iconSize * scale} centreX={baseCentres[i]!} />}
             </Slot>
@@ -149,32 +162,14 @@ function Tooltip({ label }: { label: string }) {
 function AppIcon({ app, size, centreX }: { app: DockApp; size: number; centreX: number }) {
   const icon = useDock((s) => s.icons[app.key]);
   const loadIcon = useDock((s) => s.loadIcon);
-  const backend = useDock((s) => s.backend);
   const launching = useDock((s) => !!s.launching[app.key]);
   const menuOpen = useDock((s) => !!s.menu);
   const previewKey = useDock((s) => s.preview?.key);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => loadIcon(app.key, app.exe), [app.key, app.exe, loadIcon]);
 
-  const click = () => {
-    useDock.setState({ preview: null });
-    if (!backend) return;
-    if (!app.running) {
-      useDock.setState((s) => ({ launching: { ...s.launching, [app.key]: Date.now() } }));
-      setTimeout(() => useDock.setState((s) => ({ launching: omit(s.launching, app.key) })), 6000);
-      void backend.dockLaunch(app.key);
-      return;
-    }
-    const wins = app.windows;
-    if (app.active && wins.length === 1 && !wins[0]!.minimized) {
-      void backend.dockWindow(wins[0]!.hwnd, "minimize");
-    } else if (app.active && wins.length > 1) {
-      // Cycle: bring the least-recent window forward.
-      void backend.dockWindow(wins[wins.length - 1]!.hwnd, "activate");
-    } else {
-      void backend.dockWindow((wins.find((w) => !w.minimized) ?? wins[0]!).hwnd, "activate");
-    }
-  };
+  const click = () => activateApp(app);
+  const previews = useDock((s) => s.settings.dock.previews);
 
   return (
     <button
@@ -187,7 +182,7 @@ function AppIcon({ app, size, centreX }: { app: DockApp; size: number; centreX: 
         useDock.setState({ menu: { key: app.key, x: centreX }, preview: null });
       }}
       onPointerEnter={() => {
-        if (!app.running || menuOpen) return;
+        if (!app.running || menuOpen || !previews) return;
         if (previewKey) useDock.setState({ preview: { key: app.key, x: centreX } });
         else hoverTimer.current = setTimeout(() => useDock.setState({ preview: { key: app.key, x: centreX } }), 550);
       }}
@@ -210,18 +205,52 @@ function AppIcon({ app, size, centreX }: { app: DockApp; size: number; centreX: 
 
 function StartButton({ size }: { size: number }) {
   const backend = useDock((s) => s.backend);
+  const icon = useDock((s) => s.settings.dock.startIcon);
   return (
     <button type="button" aria-label="Start" className="group relative outline-none" onClick={() => void backend?.launcherToggle()}>
       <Tooltip label="Start" />
-      <div className="grid place-items-center rounded-[24%] bg-gradient-to-b from-[#3d4a8f] to-[#1d2147] shadow-inner transition-transform active:scale-90" style={{ width: size, height: size }}>
-        <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" aria-hidden>
-          <rect x="3" y="7.5" width="18" height="7" rx="3.5" fill="#05060a" />
-          <circle cx="7.3" cy="11" r="1.8" fill="#ffb15a" />
-          <path d="M13.5 11h0M16 9.6v2.8M18.4 10.3v1.4" stroke="#9db4ff" strokeWidth="1.6" strokeLinecap="round" />
+      <div className="grid place-items-center transition-transform active:scale-90" style={{ width: size, height: size }}>
+        <StartGlyph icon={icon} size={size} />
+      </div>
+    </button>
+  );
+}
+
+function TaskViewButton({ size }: { size: number }) {
+  const backend = useDock((s) => s.backend);
+  return (
+    <button type="button" aria-label="Task View" className="group relative outline-none" onClick={() => void backend?.dockOpenPlace("taskview")}>
+      <Tooltip label="Task View" />
+      <div className="grid place-items-center rounded-[24%] bg-white/10 text-white transition-transform active:scale-90" style={{ width: size, height: size }}>
+        <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
+          <rect x="3" y="6" width="11" height="12" rx="2" />
+          <path d="M17 8h2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
         </svg>
       </div>
     </button>
   );
+}
+
+/** Click on a dock app (or Win+N): launch, focus, minimise or cycle its windows. */
+export function activateApp(app: DockApp) {
+  const backend = useDock.getState().backend;
+  useDock.setState({ preview: null });
+  if (!backend) return;
+  if (!app.running) {
+    useDock.setState((s) => ({ launching: { ...s.launching, [app.key]: Date.now() } }));
+    setTimeout(() => useDock.setState((s) => ({ launching: omit(s.launching, app.key) })), 6000);
+    void backend.dockLaunch(app.key);
+    return;
+  }
+  const wins = app.windows;
+  if (app.active && wins.length === 1 && !wins[0]!.minimized) {
+    void backend.dockWindow(wins[0]!.hwnd, "minimize");
+  } else if (app.active && wins.length > 1) {
+    // Cycle: bring the least-recent window forward.
+    void backend.dockWindow(wins[wins.length - 1]!.hwnd, "activate");
+  } else {
+    void backend.dockWindow((wins.find((w) => !w.minimized) ?? wins[0]!).hwnd, "activate");
+  }
 }
 
 function PlaceIcon({ place, size, centreX }: { place: "downloads" | "recycle"; size: number; centreX: number }) {
@@ -306,6 +335,10 @@ function useDockSync() {
         backend.on("island://hover", (hovered) => useDock.setState({ hovered })),
         backend.on("settings://changed", (settings) => useDock.setState({ settings })),
         backend.on("tray://icons", (tray) => useDock.setState({ tray })),
+        backend.on("dock://hotkey", (slot) => {
+          const app = useDock.getState().apps.filter((a) => a.pinned)[slot];
+          if (app) activateApp(app);
+        }),
       );
       const [settings, apps, places, tray] = await Promise.all([backend.getSettings(), backend.dockApps(), backend.dockPlaces(), backend.trayIcons()]);
       if (disposed) return;

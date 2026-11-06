@@ -90,16 +90,46 @@ pub fn reposition(app: &AppHandle) {
     }
 }
 
-pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
-    // Phase 1: primary monitor only. Phase 5 adds one island per monitor; the
-    // label scheme (`island-<n>`) and hit tester already handle many windows.
-    let monitor = app.primary_monitor()?.or_else(|| {
-        app.available_monitors()
-            .ok()
-            .and_then(|m| m.into_iter().next())
-    });
-    let label = format!("{LABEL_PREFIX}0");
+/// Monitors that get an island: the primary first (it hosts `island-0`, which
+/// the clipboard hotkey focuses), then the rest unless "all displays" is off.
+fn island_monitors(app: &AppHandle) -> Vec<Monitor> {
+    let all = app.available_monitors().unwrap_or_default();
+    let primary = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| all.first().cloned());
+    let Some(primary) = primary else {
+        return Vec::new();
+    };
+    let mut out = vec![primary.clone()];
+    if app.state::<SettingsStore>().get().island.all_monitors {
+        out.extend(
+            all.into_iter()
+                .filter(|m| m.position() != primary.position()),
+        );
+    }
+    out
+}
 
+fn monitors_key(ms: &[Monitor]) -> String {
+    ms.iter()
+        .map(|m| {
+            format!(
+                "{},{},{}x{}@{}",
+                m.position().x,
+                m.position().y,
+                m.size().width,
+                m.size().height,
+                m.scale_factor()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+fn create_island(app: &AppHandle, idx: usize, monitor: &Monitor) -> tauri::Result<()> {
+    let label = format!("{LABEL_PREFIX}{idx}");
     let win = WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
         .title("Isle")
         .inner_size(CANVAS_W, CANVAS_H)
@@ -114,10 +144,7 @@ pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
         .focused(false)
         .visible(false)
         .build()?;
-
-    if let Some(m) = monitor {
-        place(app, &win, &m);
-    }
+    place(app, &win, monitor);
 
     let app2 = app.clone();
     let win2 = win.clone();
@@ -128,6 +155,65 @@ pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
             }
         }
     });
+    Ok(())
+}
+
+/// Make the set of islands (and screen-corner strips) match the connected displays.
+pub fn sync_monitors(app: &AppHandle) {
+    let monitors = island_monitors(app);
+    for (idx, m) in monitors.iter().enumerate() {
+        match app.get_webview_window(&format!("{LABEL_PREFIX}{idx}")) {
+            Some(w) => place(app, &w, m),
+            None => {
+                if let Err(e) = create_island(app, idx, m) {
+                    log::warn!("island {idx}: {e}");
+                }
+            }
+        }
+        crate::edges::ensure_corners(app, idx, m);
+    }
+    // Displays that went away (or "all displays" turned off).
+    for (label, w) in app.webview_windows() {
+        let idx = label
+            .strip_prefix(LABEL_PREFIX)
+            .or_else(|| label.strip_prefix(crate::edges::CORNERS_PREFIX))
+            .and_then(|n| n.parse::<usize>().ok());
+        if idx.is_some_and(|i| i >= monitors.len() && i > 0) {
+            log::info!("closing {label}: display gone");
+            let _ = w.close();
+        }
+    }
+}
+
+pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
+    let monitors = island_monitors(app);
+    match monitors.first() {
+        Some(m) => create_island(app, 0, m)?,
+        None => log::warn!("no monitors found"),
+    }
+    // Other displays (and later hot-plugs) are handled by the watcher.
+    let app = app.clone();
+    std::thread::Builder::new()
+        .name("isle-monitors".into())
+        .spawn(move || {
+            let mut last = String::new();
+            loop {
+                let key = format!(
+                    "{}|{}",
+                    monitors_key(&app.available_monitors().unwrap_or_default()),
+                    app.state::<SettingsStore>().get().island.all_monitors
+                );
+                if key != last {
+                    log::info!("displays: {key}");
+                    last = key;
+                    let a = app.clone();
+                    // Window creation must happen on the main thread.
+                    let _ = app.run_on_main_thread(move || sync_monitors(&a));
+                }
+                std::thread::sleep(Duration::from_secs(3));
+            }
+        })
+        .ok();
     Ok(())
 }
 

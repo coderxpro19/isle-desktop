@@ -117,7 +117,11 @@ pub fn run() {
                     .island
                     .volume_hud,
             );
-            hud::spawn();
+            {
+                let d = app.state::<settings::SettingsStore>().get().dock;
+                hud::set_win_numbers(d.enabled && d.win_numbers);
+            }
+            hud::spawn(handle.clone());
             log::info!("setup: watchers started");
             // Tray first: whatever happens next, the user can quit or open the logs.
             tray::create(&handle)?;
