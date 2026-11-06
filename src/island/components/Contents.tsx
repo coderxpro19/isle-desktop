@@ -8,6 +8,7 @@ import { describe } from "@/lib/weather";
 import type { Tab } from "../store";
 import { ClockPanel } from "./ClockPanel";
 import { ClipboardPanel } from "./ClipboardPanel";
+import { AssistantPanel } from "./AssistantPanel";
 import { ControlsPanel } from "./ControlsPanel";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { ShelfPanel } from "./ShelfPanel";
@@ -218,6 +219,8 @@ export function ExpandedContent({ primary, tab }: { primary: ActivityKind | null
       return <ClockPanel />;
     case "clipboard":
       return <ClipboardPanel />;
+    case "assistant":
+      return <AssistantPanel />;
     case "notifications":
       return <NotificationsPanel />;
     case "shelf":

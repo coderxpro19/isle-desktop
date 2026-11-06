@@ -1,6 +1,6 @@
 [package]
 name = "isle"
-version = "0.12.0"
+version = "0.13.0"
 description = "Isle — a Dynamic Island and dock for Windows"
 authors = ["coderxpro19"]
 edition = "2021"
@@ -31,6 +31,9 @@ rustfft = "6"
 cpal = "0.16"
 png = "0.17"
 sysinfo = { version = "0.40", default-features = false, features = ["system", "disk", "network"] }
+# AI assistant: same HTTP/TLS stack the updater already ships (no extra crypto build).
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls-no-provider", "system-proxy"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 [target.'cfg(windows)'.dependencies]
 # Needed by the `#[implement]` macro for COM callbacks.

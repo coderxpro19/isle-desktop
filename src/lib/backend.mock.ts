@@ -28,6 +28,7 @@ export interface MockControls {
   notify(n?: Partial<Notice>): void;
   drop(paths: string[]): void;
   openClipboard(): void;
+  openAssistant(): void;
 }
 
 declare global {
@@ -192,6 +193,7 @@ export function createMockBackend(): Backend {
     { id: 1, kind: "text", text: "coderxpro19@gmail.com", files: [], preview: null, width: 0, height: 0, pinned: true, atMs: ago(2000), app: null },
   ];
   const emitClips = () => emit("clip://changed", clips);
+  let aiKey = new URLSearchParams(location.search).has("aikey");
   let notices: NoticeState = { access: "allowed", items: [] };
   let noticeId = 1;
   const dropCbs = new Set<(e: FileDrop) => void>();
@@ -216,6 +218,9 @@ export function createMockBackend(): Backend {
     },
     openClipboard() {
       emit("clip://open", null);
+    },
+    openAssistant() {
+      emit("ai://open", null);
     },
     drop(paths) {
       dropCbs.forEach((cb) => cb({ type: "drop", paths }));
@@ -435,6 +440,28 @@ export function createMockBackend(): Backend {
     async appVersion() {
       return "0.10.0-dev";
     },
+    async aiAsk(id, _provider, _model, _baseUrl, messages) {
+      const q = messages.at(-1)?.content ?? "";
+      const reply = q.toLowerCase().includes("summar")
+        ? "**Summary:** Meet at the Lekki office by 6pm and bring the brand board and the new samples."
+        : `Here's a quick answer to “${q.slice(0, 60)}”.\n\n1. Isle runs the notch, dock and overlays.\n2. Press **Alt+Shift+Space** to ask me anything.`;
+      let out = "";
+      for (const word of reply.split(/(?<= )/)) {
+        await new Promise((r) => setTimeout(r, 25));
+        out += word;
+        emit("ai://chunk", { id, delta: word });
+      }
+      return out;
+    },
+    async aiCancel() {},
+    async aiKeys() {
+      return { gemini: aiKey, openai: false, anthropic: false, groq: false, custom: false };
+    },
+    async aiSetKey(_p, key) {
+      aiKey = !!key;
+    },
+    async aiKeyPage() {},
+    async aiPaste() {},
     async clipList() {
       return clips;
     },

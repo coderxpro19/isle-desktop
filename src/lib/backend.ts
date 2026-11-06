@@ -1,7 +1,7 @@
 import type {
   Artwork, BatteryState, ControlAction, ControlsState, EventMap, MediaAction, MediaState, Rect, Settings, SettingsPage,
   Weather, WeatherLocation, WifiNetwork, WifiConnectResult, BtDevice, BtAction, UpdateInfo,
-  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction, TrayIcon, TrayButton, Clip, FileDrop, FileInfo, NoticeState } from "./types";
+  DockApp, LauncherApp, Place, PowerAction, PreviewSlot, WindowAction, TrayIcon, TrayButton, AiMsg, AiProvider, Clip, FileDrop, FileInfo, NoticeState } from "./types";
 
 /**
  * Everything the UI needs from the native side. Two implementations:
@@ -67,6 +67,15 @@ export interface Backend {
   /** Save a backup to Downloads; returns its path. */
   settingsExport(): Promise<string>;
   appVersion(): Promise<string>;
+  /** Stream a reply (`ai://chunk` events); resolves with the full text. */
+  aiAsk(id: string, provider: AiProvider, model: string, baseUrl: string, messages: AiMsg[]): Promise<string>;
+  aiCancel(id: string): Promise<void>;
+  /** Which providers have a saved key. */
+  aiKeys(): Promise<Record<string, boolean>>;
+  aiSetKey(provider: AiProvider, key: string | null): Promise<void>;
+  aiKeyPage(provider: AiProvider): Promise<void>;
+  /** Paste text into the app that was in front when the assistant was summoned. */
+  aiPaste(text: string): Promise<void>;
   clipList(): Promise<Clip[]>;
   clipPin(id: number, pinned: boolean): Promise<void>;
   /** Delete one clip, or everything unpinned with null. */

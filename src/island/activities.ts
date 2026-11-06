@@ -111,6 +111,8 @@ function expanded(primary: ActivityKind | null, radius: number, tab: Tab, notch:
       return { w: 440, h: HEADER_H + 262, r };
     case "clipboard":
       return { w: 460, h: HEADER_H + 290, r };
+    case "assistant":
+      return { w: 480, h: HEADER_H + 300, r };
     case "shelf":
       return { w: 460, h: HEADER_H + 218, r };
     case "home":
@@ -121,6 +123,7 @@ function expanded(primary: ActivityKind | null, radius: number, tab: Tab, notch:
 /** The order the ‹ › arrows walk through. */
 export const PAGES: { id: Tab; label: string }[] = [
   { id: "controls", label: "Control Centre" },
+  { id: "assistant", label: "Assistant" },
   { id: "home", label: "Now Playing" },
   { id: "clock", label: "Calendar & Timer" },
   { id: "notifications", label: "Notifications" },

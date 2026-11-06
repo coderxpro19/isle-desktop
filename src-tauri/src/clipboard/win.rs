@@ -23,7 +23,7 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS,
-    KEYEVENTF_KEYUP, MOD_ALT, MOD_NOREPEAT, MOD_SHIFT, VIRTUAL_KEY, VK_CONTROL, VK_V,
+    KEYEVENTF_KEYUP, MOD_ALT, MOD_NOREPEAT, MOD_SHIFT, VIRTUAL_KEY, VK_CONTROL, VK_SPACE, VK_V,
 };
 use windows::Win32::UI::Shell::{DragQueryFileW, DROPFILES, HDROP};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -36,6 +36,8 @@ use super::{record, Captured, Clip, ClipKind, History, ENABLED};
 use crate::events;
 
 const HOTKEY_ID: i32 = 0x1515;
+/// Alt+Shift+Space: the AI assistant.
+const AI_HOTKEY_ID: i32 = 0x1516;
 
 struct Ctx {
     app: AppHandle,
@@ -91,6 +93,14 @@ pub fn run(app: AppHandle, hist: Arc<Mutex<History>>, dir: Option<PathBuf>) {
         ) {
             log::warn!("clipboard: Alt+Shift+V is taken by another app: {e}");
         }
+        if let Err(e) = RegisterHotKey(
+            Some(hwnd),
+            AI_HOTKEY_ID,
+            MOD_ALT | MOD_SHIFT | MOD_NOREPEAT,
+            VK_SPACE.0 as u32,
+        ) {
+            log::warn!("assistant: Alt+Shift+Space is taken by another app: {e}");
+        }
         log::info!("setup: clipboard history ready");
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
@@ -113,13 +123,18 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             }
             LRESULT(0)
         }
-        WM_HOTKEY if wparam.0 as i32 == HOTKEY_ID => {
+        WM_HOTKEY if wparam.0 as i32 == HOTKEY_ID || wparam.0 as i32 == AI_HOTKEY_ID => {
             if let Some(ctx) = CTX.get() {
                 let fg = GetForegroundWindow();
                 if !is_own(&ctx.app, fg) {
                     PREV_FG.store(fg.0 as isize, Ordering::SeqCst);
                 }
-                let _ = ctx.app.emit(events::CLIP_OPEN, ());
+                let event = if wparam.0 as i32 == AI_HOTKEY_ID {
+                    events::AI_OPEN
+                } else {
+                    events::CLIP_OPEN
+                };
+                let _ = ctx.app.emit(event, ());
                 if let Some(w) = ctx.app.get_webview_window("island-0") {
                     let _ = w.set_focus();
                 }

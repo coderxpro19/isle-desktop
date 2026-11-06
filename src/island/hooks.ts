@@ -369,6 +369,9 @@ export function useClipboard() {
     void backend.clipList().then((clips) => useIsland.setState({ clips }), () => {});
     const offs = [
       backend.on("clip://changed", (clips) => useIsland.setState({ clips })),
+      backend.on("ai://open", () =>
+        useIsland.setState({ summoned: true, mode: "expanded", tab: "assistant", hovered: true, islandMenu: false, transient: null }),
+      ),
       backend.on("clip://open", () =>
         useIsland.setState({ summoned: true, mode: "expanded", tab: "clipboard", hovered: true, islandMenu: false, transient: null }),
       ),

@@ -17,6 +17,7 @@
 //! - `tray_host` hosts other apps' tray icons for the dock
 //! - `events`   names of every event emitted to the UI
 
+mod ai;
 mod audio;
 mod autostart;
 mod calendar;
@@ -185,6 +186,12 @@ pub fn run() {
             settings::settings_import,
             settings::settings_export,
             settings_window::isle_settings_open,
+            ai::ai_ask,
+            ai::ai_cancel,
+            ai::ai_keys,
+            ai::ai_set_key,
+            ai::ai_key_page,
+            ai::ai_paste,
             clipboard::clip_list,
             clipboard::clip_pin,
             clipboard::clip_delete,

@@ -52,6 +52,7 @@ export function DevStage() {
       }
       if (q.get("shelf")) dropDemoFiles();
       if (q.get("clip")) window.__isleMock?.openClipboard();
+      if (q.get("ai")) window.__isleMock?.openAssistant();
       if (q.get("dropping")) useIsland.setState({ dropping: true });
       if (q.get("timer")) startDemoTimer();
       if (q.get("hud")) showHud();
@@ -96,7 +97,7 @@ export function DevStage() {
           ))}
         </Group>
         <Group label="Tab">
-          {(["home", "controls", "clock", "clipboard", "notifications", "shelf", "weather", "stats"] as const).map((t) => (
+          {(["home", "controls", "assistant", "clock", "clipboard", "notifications", "shelf", "weather", "stats"] as const).map((t) => (
             <Btn key={t} on={tab === t && mode === "expanded"} onClick={() => useIsland.setState({ mode: "expanded", hovered: true, tab: t })}>
               {t}
             </Btn>
@@ -126,6 +127,7 @@ export function DevStage() {
           <Btn onClick={() => window.__isleMock?.notify()}>notification</Btn>
           <Btn onClick={dropDemoFiles}>drop files</Btn>
           <Btn onClick={() => window.__isleMock?.openClipboard()}>Alt+Shift+V</Btn>
+          <Btn onClick={() => window.__isleMock?.openAssistant()}>Alt+Shift+Space</Btn>
         </Group>
         <Group label="Dock">
           {(["fixed", "autoHide", "smart"] as const).map((m) => (

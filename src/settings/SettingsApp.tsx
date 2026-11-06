@@ -735,7 +735,7 @@ function About({ backend, onImported }: { backend: Backend; onImported(s: Settin
         </Row>
       </Card>
       {msg && <div className={`rounded-lg px-4 py-2.5 text-[12px] ${msg.ok ? "bg-[#30a46c]/15 text-[#5bd39a]" : "bg-[#e5484d]/15 text-[#ff8a8a]"}`}>{msg.text}</div>}
-      <div className="mt-4 text-center text-[11px] text-[var(--dim)]">Alt+Shift+V clipboard · Esc closes the notch</div>
+      <div className="mt-4 text-center text-[11px] text-[var(--dim)]">Alt+Shift+Space assistant · Alt+Shift+V clipboard · Win+1…9 dock apps · Esc closes the notch</div>
     </>
   );
 }

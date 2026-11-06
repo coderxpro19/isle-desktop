@@ -81,3 +81,8 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - Win+1…9 open the dock's pinned apps; peek delay for hidden docks; app previews toggle
 - A notch (and rounded corners) on every connected display, following hot-plugs; "Show on all displays" setting
 
+## v0.13.0 — AI assistant ✅
+- Assistant page in the notch; Alt+Shift+Space opens it over any app
+- Bring your own key: Gemini, OpenAI, Claude, Groq or a local OpenAI-compatible server (Ollama); keys in the Windows Credential Locker
+- Streaming replies, quick actions on the last copied text (summarise, fix grammar, translate, explain, draft a reply), Copy / Paste into app
+

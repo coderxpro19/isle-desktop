@@ -83,6 +83,13 @@ export interface Settings {
   calendar: { feeds: CalendarFeed[] };
   general: { startWithWindows: boolean };
   overlays: { volumeEdge: boolean; brightnessHud: boolean; brightnessEdge: boolean };
+  ai: { provider: AiProvider; model: string; baseUrl: string };
+}
+
+export type AiProvider = "gemini" | "openai" | "anthropic" | "groq" | "custom";
+export interface AiMsg {
+  role: "user" | "assistant";
+  content: string;
 }
 
 export type NotchStyle = "notch" | "floating";
@@ -176,6 +183,7 @@ export const DEFAULT_SETTINGS: Settings = {
   calendar: { feeds: [] },
   general: { startWithWindows: true },
   overlays: { volumeEdge: true, brightnessHud: true, brightnessEdge: true },
+  ai: { provider: "gemini", model: "", baseUrl: "" },
 };
 
 export interface Notice {
@@ -358,6 +366,8 @@ export interface EventMap {
   "dock://overlap": boolean;
   "tray://icons": TrayIcon[];
   "dock://hotkey": number;
+  "ai://chunk": { id: string; delta: string };
+  "ai://open": null;
   "hud://show": Hud;
   "notify://new": Notice;
   "clip://changed": Clip[];

@@ -22,6 +22,29 @@ pub struct Settings {
     pub calendar: CalendarSettings,
     pub general: GeneralSettings,
     pub overlays: OverlaySettings,
+    pub ai: AiSettings,
+}
+
+/// AI assistant choice. API keys are kept in the Windows Credential Locker.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AiSettings {
+    /// "gemini" | "openai" | "anthropic" | "groq" | "custom"
+    pub provider: String,
+    /// Empty: the provider's default model.
+    pub model: String,
+    /// Only for "custom" (OpenAI-compatible, e.g. Ollama).
+    pub base_url: String,
+}
+
+impl Default for AiSettings {
+    fn default() -> Self {
+        Self {
+            provider: "gemini".into(),
+            model: String::new(),
+            base_url: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -250,6 +273,7 @@ impl Default for Settings {
             calendar: Default::default(),
             general: Default::default(),
             overlays: Default::default(),
+            ai: Default::default(),
         }
     }
 }

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Backend } from "@/lib/backend";
-import type { BatteryState, Clip, ControlsState, FileInfo, Hud, MediaState, Notice, NoticeState, PairingPrompt, Settings, StatsTick, UpdateInfo, Weather } from "@/lib/types";
+import type { AiMsg, BatteryState, Clip, ControlsState, FileInfo, Hud, MediaState, Notice, NoticeState, PairingPrompt, Settings, StatsTick, UpdateInfo, Weather } from "@/lib/types";
 import type { CalEvent } from "@/lib/ics";
 import { EMPTY_CLOCK, type ClockState } from "./clock";
 import { DEFAULT_SETTINGS } from "@/lib/types";
@@ -14,7 +14,7 @@ export type UpdateState =
   | { kind: "available"; info: UpdateInfo }
   | { kind: "installing"; info: UpdateInfo; progress: number | null }
   | { kind: "error"; message: string; info?: UpdateInfo };
-export type Tab = "home" | "controls" | "clock" | "clipboard" | "notifications" | "shelf" | "weather" | "stats";
+export type Tab = "home" | "controls" | "assistant" | "clock" | "clipboard" | "notifications" | "shelf" | "weather" | "stats";
 export type ShelfItem = FileInfo & { thumb?: string | null };
 export type ClockView = "timer" | "stopwatch" | "focus" | "calendar";
 /** Sub-page inside the Controls tab. */
@@ -72,6 +72,9 @@ export interface IslandState {
   /** Files are being dragged over the island. */
   dropping: boolean;
   clips: Clip[];
+  aiMessages: AiMsg[];
+  aiBusy: boolean;
+  aiError: string | null;
   /** Opened with Alt+Shift+V: stays open until Esc, a paste or focus loss. */
   summoned: boolean;
 
@@ -111,6 +114,9 @@ export const useIsland = create<IslandState>((set, get) => ({
   shelf: [],
   dropping: false,
   clips: [],
+  aiMessages: [],
+  aiBusy: false,
+  aiError: null,
   summoned: false,
   clock: EMPTY_CLOCK,
   clockView: "timer",

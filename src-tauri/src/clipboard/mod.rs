@@ -294,6 +294,35 @@ pub(crate) fn record(
     let _ = app.emit(events::CLIP_CHANGED, &h.items);
 }
 
+/// Put plain text on the clipboard and paste it into the app that was in front
+/// when Isle was summoned by a hotkey.
+pub fn paste_text(text: &str) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let clip = Clip {
+            id: 0,
+            kind: ClipKind::Text,
+            text: Some(text.to_string()),
+            files: Vec::new(),
+            preview: None,
+            width: 0,
+            height: 0,
+            sig: 0,
+            pinned: false,
+            at_ms: 0,
+            app: None,
+        };
+        win::write(&clip, None)?;
+        win::paste_into_previous();
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = text;
+        Err("not supported on this platform".into())
+    }
+}
+
 pub fn set_enabled(on: bool) {
     ENABLED.store(on, Ordering::Relaxed);
 }

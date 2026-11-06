@@ -24,6 +24,9 @@ pub const HUD: &str = "hud://show";
 /// Win+N pressed: open the dock's N-th pinned app (payload: 0-based slot).
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const DOCK_HOTKEY: &str = "dock://hotkey";
+/// Alt+Shift+Space: open the AI assistant.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const AI_OPEN: &str = "ai://open";
 /// Clipboard history changed (payload: `Vec<clipboard::Clip>`).
 pub const CLIP_CHANGED: &str = "clip://changed";
 /// Alt+Shift+V: open clipboard history.
