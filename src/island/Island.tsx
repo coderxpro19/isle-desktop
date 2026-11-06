@@ -1,10 +1,10 @@
 import { AnimatePresence, motion, type Transition } from "motion/react";
 import { useEffect, useMemo, useRef } from "react";
 import type { Rect } from "@/lib/types";
-import { BUBBLE, BUBBLE_GAP, CLOCK_KINDS, PILL_TOP, TAB_BAR_H, deriveActivities, pillSize, type Activity } from "./activities";
+import { BUBBLE, BUBBLE_GAP, CLOCK_KINDS, HEADER_H, deriveActivities, pillSize, pillTop, type Activity } from "./activities";
 import { CompactContent, ExpandedContent, PeekContent, useAccent } from "./components/Contents";
 import { BoltIcon, NoteIcon } from "./components/icons";
-import { TabBar } from "./components/TabBar";
+import { Header } from "./components/Header";
 import { LiveBubbleIcon } from "./components/Live";
 import { IslandMenu, MENU_H, MENU_W } from "./components/IslandMenu";
 import { UPDATE_BANNER_H, useShowUpdateBanner } from "./components/UpdateBanner";
@@ -54,7 +54,11 @@ export function Island() {
   const now = useIsland((s) => s.now);
   const backend = useIsland((s) => s.backend);
   const tab = useIsland((s) => s.tab);
-  const { cornerRadius, reduceMotion, surface } = useIsland((s) => s.settings.appearance);
+  const { cornerRadius, reduceMotion, surface, backgroundOpacity } = useIsland((s) => s.settings.appearance);
+  const { notchStyle, compactMode } = useIsland((s) => s.settings.island);
+  const notch = notchStyle === "notch";
+  const PILL_TOP = pillTop(notchStyle);
+  const surfaceCss = backgroundOpacity < 1 ? `color-mix(in srgb, ${surface} ${Math.round(backgroundOpacity * 100)}%, transparent)` : surface;
   const { setHovered, setMode } = useIsland.getState();
 
   const activities = useMemo(
@@ -66,12 +70,12 @@ export function Island() {
   const primary = activities[0]?.kind ?? null;
   const bubbles = activities.slice(1, 3);
   const controlsView = useIsland((s) => s.controlsView);
-  const base = pillSize(mode, primary, cornerRadius, tab);
+  const base = pillSize(mode, primary, cornerRadius, tab, notchStyle, compactMode);
   // Wi-Fi / Bluetooth lists get extra room.
   const banner = useShowUpdateBanner();
   const size =
     mode === "expanded" && tab === "controls" && controlsView !== "main"
-      ? { ...base, h: TAB_BAR_H + 316 }
+      ? { ...base, h: HEADER_H + (controlsView === "tray" ? 150 : 316) }
       : mode === "expanded" && tab === "home" && banner
         ? { ...base, h: base.h + UPDATE_BANNER_H }
         : base;
@@ -99,7 +103,7 @@ export function Island() {
       lastRects.current = json;
       void backend.setHitRects(rects);
     }
-  }, [backend, size.w, size.h, bubbles, menuOpen, menuTop]);
+  }, [backend, size.w, size.h, bubbles, menuOpen, menuTop, PILL_TOP]);
 
   // Show the native window only once something has painted.
   useEffect(() => {
@@ -109,10 +113,32 @@ export function Island() {
 
   const expanded = mode === "expanded";
   const contentKey = expanded ? `expanded:${tab}:${tab === "home" ? (primary ?? "idle") : ""}` : `${mode}:${primary ?? "idle"}`;
-  const contentTop = expanded ? TAB_BAR_H : 0;
+  const contentTop = expanded ? HEADER_H : 0;
+  const radius = notch ? `0px 0px ${size.r}px ${size.r}px` : `${size.r}px`;
+  // Concave "ears" where a notch meets the top edge.
+  const EAR = mode === "compact" ? 8 : 12;
 
   return (
-    <div className="relative select-none" style={{ width: CANVAS_W, height: CANVAS_H, ["--isle-surface" as string]: surface }}>
+    <div className="relative select-none" style={{ width: CANVAS_W, height: CANVAS_H, ["--isle-surface" as string]: surfaceCss }}>
+      {notch && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-0"
+          style={{ x: "-50%" }}
+          initial={false}
+          animate={{ width: size.w + EAR * 2, height: EAR }}
+          transition={spring}
+        >
+          <span
+            className="absolute top-0 left-0 h-full"
+            style={{ width: EAR, background: `radial-gradient(circle at 0 100%, transparent ${EAR - 0.5}px, var(--isle-surface) ${EAR}px)` }}
+          />
+          <span
+            className="absolute top-0 right-0 h-full"
+            style={{ width: EAR, background: `radial-gradient(circle at 100% 100%, transparent ${EAR - 0.5}px, var(--isle-surface) ${EAR}px)` }}
+          />
+        </motion.div>
+      )}
       <motion.div
         className="isle-pill absolute left-1/2 cursor-default overflow-hidden bg-[var(--isle-surface,#000)]"
         style={{ top: PILL_TOP, x: "-50%" }}
@@ -120,9 +146,12 @@ export function Island() {
         animate={{
           width: size.w,
           height: size.h,
-          borderRadius: size.r,
-          boxShadow:
-            mode === "expanded"
+          borderRadius: radius,
+          boxShadow: notch
+            ? mode === "expanded"
+              ? "0 14px 40px rgba(0,0,0,.45)"
+              : "0 2px 8px rgba(0,0,0,.18)"
+            : mode === "expanded"
               ? "0 18px 50px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.07)"
               : "0 4px 14px rgba(0,0,0,.28), 0 0 0 1px rgba(255,255,255,.06)",
         }}
@@ -145,6 +174,7 @@ export function Island() {
             if (t?.kind === "notification") return openNotice(t.notice);
           }
           else if (primary && CLOCK_KINDS.includes(primary)) openClockFor(primary);
+          else if (primary === "music") useIsland.setState({ tab: "home" });
           setMode("expanded");
         }}
       >
@@ -158,7 +188,7 @@ export function Island() {
               exit={{ opacity: 0, y: -6, transition: { duration: 0.1 } }}
               transition={reduceMotion ? { duration: 0 } : { duration: 0.22, delay: 0.06 }}
             >
-              <TabBar />
+              <Header />
             </motion.div>
           )}
         </AnimatePresence>
@@ -187,14 +217,14 @@ export function Island() {
 
       <AnimatePresence>
         {bubbles.map((a, i) => (
-          <Bubble key={a.id} activity={a} index={i} pillW={size.w} spring={spring} />
+          <Bubble key={a.id} activity={a} index={i} pillW={size.w} top={notch ? 0 : PILL_TOP} notch={notch} spring={spring} />
         ))}
       </AnimatePresence>
     </div>
   );
 }
 
-function Bubble({ activity, index, pillW, spring }: { activity: Activity; index: number; pillW: number; spring: Transition }) {
+function Bubble({ activity, index, pillW, top, notch, spring }: { activity: Activity; index: number; pillW: number; top: number; notch: boolean; spring: Transition }) {
   const artwork = useIsland((s) => (s.media ? s.artworks[s.media.trackKey] : undefined));
   const accent = useAccent();
   const left = CANVAS_W / 2 + pillW / 2 + BUBBLE_GAP + index * (BUBBLE + BUBBLE_GAP);
@@ -205,7 +235,7 @@ function Bubble({ activity, index, pillW, spring }: { activity: Activity; index:
       type="button"
       aria-label={activity.kind}
       className="absolute grid place-items-center overflow-hidden rounded-full bg-[var(--isle-surface,#000)] shadow-[0_4px_14px_rgba(0,0,0,.28),0_0_0_1px_rgba(255,255,255,.06)]"
-      style={{ top: PILL_TOP, width: BUBBLE, height: BUBBLE }}
+      style={notch ? { top, width: BUBBLE, height: 30, borderRadius: "0 0 15px 15px" } : { top, width: BUBBLE, height: BUBBLE }}
       initial={{ left: left - BUBBLE, scale: 0.4, opacity: 0 }}
       animate={{ left, scale: 1, opacity: 1 }}
       exit={{ left: left - BUBBLE, scale: 0.4, opacity: 0 }}

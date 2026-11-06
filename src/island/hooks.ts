@@ -3,6 +3,7 @@ import { getBackend } from "@/lib/backend";
 import { extractAccent } from "@/lib/color";
 import { spectrumBus } from "@/lib/spectrum";
 import { WEATHER_TTL_MS } from "@/lib/weather";
+import type { WeatherLocation } from "@/lib/types";
 import { parseIcs } from "@/lib/ics";
 import { chime, nextPhase } from "./clock";
 import type { MediaState } from "@/lib/types";
@@ -38,10 +39,7 @@ export function useBackendSync() {
         backend.on("controls://changed", (controls) => useIsland.setState({ controls })),
         backend.on("stats://tick", (t) => useIsland.getState().pushStats(t)),
         backend.on("bt://pairing", (btPrompt) => useIsland.setState({ btPrompt })),
-        backend.on("hud://show", (hud) => {
-          if (!useIsland.getState().settings.island.volumeHud && hud.kind === "volume") return;
-          useIsland.setState({ transient: { kind: "hud", hud, until: Date.now() + 1600 } });
-        }),
+        // Volume / brightness pop-ups live on the screen edges now (overlays/Edge.tsx).
       );
 
       const [settings, battery, media, art, controls] = await Promise.all([
@@ -139,11 +137,14 @@ export function useHoverIntent() {
   const pinned = useIsland((s) => s.pins > 0 || s.islandMenu || s.summoned);
   const hovered = useIsland((s) => s.hovered) || pinned;
   const mode = useIsland((s) => s.mode);
-  const expandOnHover = useIsland((s) => s.settings.island.expandOnHover);
+  const { expandOnHover, notchBehavior, peekDelayMs } = useIsland((s) => s.settings.island);
   useEffect(() => {
     const set = useIsland.getState().setMode;
     if (hovered && mode === "compact") {
-      const t = setTimeout(() => set(expandOnHover ? "expanded" : "peek"), 140);
+      // "Click" mode: hovering does nothing (a click opens it).
+      if (notchBehavior === "click" && !pinned) return;
+      const open = expandOnHover || notchBehavior === "hover" || pinned;
+      const t = setTimeout(() => set(open ? "expanded" : "peek"), Math.max(0, peekDelayMs));
       return () => clearTimeout(t);
     }
     // Leaving the island closes its menu (after the same grace period).
@@ -155,7 +156,7 @@ export function useHoverIntent() {
       const t = setTimeout(() => set("compact"), mode === "expanded" ? 650 : 180);
       return () => clearTimeout(t);
     }
-  }, [hovered, mode, expandOnHover]);
+  }, [hovered, mode, expandOnHover, notchBehavior, peekDelayMs, pinned]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -177,16 +178,29 @@ export function usePanelDemand() {
   const open = useIsland((s) => (s.mode === "expanded" ? s.tab : null));
   useEffect(() => {
     if (!backend) return;
-    void backend.setControlsActive(open === "controls");
-    void backend.setStatsActive(open === "stats");
+    // The status header shows CPU/RAM and the control centre live levels on every page.
+    void backend.setControlsActive(open !== null);
+    void backend.setStatsActive(open !== null);
   }, [backend, open]);
 }
 
 /** Fetch weather when a weather view is visible and the cached copy is stale. */
 export function useWeather() {
   const backend = useIsland((s) => s.backend);
-  const { location, fahrenheit } = useIsland((s) => s.settings.weather);
-  const visible = useIsland((s) => s.mode === "expanded" && (s.tab === "weather" || (s.tab === "home" && !s.media)));
+  const { location: chosen, fahrenheit } = useIsland((s) => s.settings.weather);
+  const visible = useIsland((s) => s.mode === "expanded");
+  const [auto, setAuto] = useState<WeatherLocation | null>(null);
+  const asked = useRef(false);
+  // No city chosen: use Windows location once (if allowed) so the header can show weather.
+  useEffect(() => {
+    if (!backend || chosen || !visible || asked.current) return;
+    asked.current = true;
+    backend.locationCurrent().then(
+      (p) => setAuto({ name: "Your location", latitude: Math.round(p.latitude * 100) / 100, longitude: Math.round(p.longitude * 100) / 100 }),
+      () => {},
+    );
+  }, [backend, chosen, visible]);
+  const location = chosen ?? auto;
   const fetchedAt = useIsland((s) => s.weather?.fetchedAt ?? 0);
   const key = location ? `${location.latitude},${location.longitude},${fahrenheit}` : null;
   const lastKey = useRef<string | null>(null);

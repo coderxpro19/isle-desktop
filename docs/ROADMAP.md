@@ -68,3 +68,11 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - One island per monitor
 - ✅ Settings app with import/export, Start with Windows (v0.10.0) · ⬜ cloud sync
 - Performance budget in CI: < 1% idle CPU, < 80 MB RAM, 60 fps+ animations
+
+## v0.11.0 — Notch redesign ✅
+- Notch flush with the top edge (concave corners), time-only when idle, compact music mode, peek delay
+- Status header: weather / CPU / RAM / battery / GPU / disk / network widgets (configurable left & right) around ‹ time › page arrows
+- Control Centre: Wi-Fi, Bluetooth, Dock mode, Notch mode tiles; Focus, Energy saver, System tray, Notification Center, Settings, Restart; volume & brightness bars
+- Edge overlays: volume HUD (left edge), brightness HUD (right edge), slide in on edge hover, draggable
+- Rounded top screen corners; icon-only dock; frameless Settings (General, Appearance, Notch, Dock, Overlays, Calendar, About)
+

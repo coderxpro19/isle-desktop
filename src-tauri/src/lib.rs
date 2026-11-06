@@ -24,6 +24,7 @@ mod clipboard;
 mod connect;
 mod controls;
 mod dock;
+mod edges;
 mod events;
 mod fullscreen;
 mod hud;
@@ -104,6 +105,9 @@ pub fn run() {
 
             power::spawn_monitor(handle.clone());
             island::create_windows(&handle)?;
+            if let Err(e) = edges::create_windows(&handle) {
+                log::warn!("setup: edge overlays failed: {e}");
+            }
             log::info!("setup: island window created");
             island::spawn_hit_tester(handle.clone());
             fullscreen::spawn(handle.clone());

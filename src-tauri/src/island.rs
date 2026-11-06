@@ -24,7 +24,7 @@ pub const CANVAS_W: f64 = 680.0;
 pub const CANVAS_H: f64 = 440.0;
 const LABEL_PREFIX: &str = "island-";
 /// Windows whose click-through is driven by reported hit rects.
-const HIT_TESTED: [&str; 2] = ["island-", "dock-"];
+const HIT_TESTED: [&str; 3] = ["island-", "dock-", "edge-"];
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
 pub struct Rect {
@@ -79,6 +79,17 @@ pub fn island_ready(window: tauri::Window) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Re-place every island after a settings change (notch style / top offset).
+pub fn reposition(app: &AppHandle) {
+    for (label, win) in app.webview_windows() {
+        if label.starts_with(LABEL_PREFIX) {
+            if let Ok(Some(m)) = win.current_monitor() {
+                place(app, &win, &m);
+            }
+        }
+    }
+}
+
 pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
     // Phase 1: primary monitor only. Phase 5 adds one island per monitor; the
     // label scheme (`island-<n>`) and hit tester already handle many windows.
@@ -123,7 +134,13 @@ pub fn create_windows(app: &AppHandle) -> tauri::Result<()> {
 /// Top-centre of `monitor`, respecting the user's top offset.
 fn place(app: &AppHandle, win: &WebviewWindow, monitor: &Monitor) {
     let scale = monitor.scale_factor();
-    let offset = app.state::<SettingsStore>().get().island.top_offset as f64;
+    let isl = app.state::<SettingsStore>().get().island;
+    // A notch sits flush against the top edge.
+    let offset = if isl.notch_style == crate::settings::NotchStyle::Notch {
+        6.0
+    } else {
+        isl.top_offset as f64
+    };
     let (x, y) = top_centre(
         monitor.position().x as f64,
         monitor.position().y as f64,

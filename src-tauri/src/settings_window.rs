@@ -30,12 +30,14 @@ pub fn open(app: &AppHandle, section: Option<&str>) -> Result<(), String> {
         WebviewUrl::App(format!("index.html?section={sec}").into()),
     )
     .title("Isle Settings")
-    .inner_size(880.0, 620.0)
+    .inner_size(860.0, 600.0)
     .min_inner_size(720.0, 480.0)
     .center()
     .resizable(true)
-    .maximizable(true)
-    .decorations(true)
+    .maximizable(false)
+    // Isle draws its own dark frame (close button, drag area).
+    .decorations(false)
+    .shadow(true)
     .visible(true)
     .focused(true)
     .build()

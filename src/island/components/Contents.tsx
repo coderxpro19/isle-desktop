@@ -75,6 +75,8 @@ export function CompactContent({ primary }: { primary: ActivityKind | null }) {
   const media = useIsland((s) => s.media);
   const accent = useAccent();
   const transient = useIsland((s) => s.transient);
+  const notch = useIsland((s) => s.settings.island.notchStyle === "notch");
+  const compactMode = useIsland((s) => s.settings.island.compactMode);
 
   if (primary && LIVE_KINDS.includes(primary)) return <LiveContent kind={primary} />;
 
@@ -105,6 +107,33 @@ export function CompactContent({ primary }: { primary: ActivityKind | null }) {
           <BatteryGlyph percent={transient && "percent" in transient ? transient.percent : null} charging={charging} saver={false} />
         </span>
       </Row>
+    );
+  }
+
+  if (notch && compactMode && primary === "music" && media) {
+    return (
+      <div className="flex h-full items-center justify-between px-[10px]">
+        <span className="w-[44px]">
+          <Visualizer height={12} color={accent} playing={media.playing} />
+        </span>
+        <span className="flex items-center gap-1.5">
+          <UpdateDot />
+          <Clock className="text-[13px] font-bold text-white" />
+        </span>
+        <span className="flex w-[44px] justify-end">
+          <Artwork size={20} radius={5} />
+        </span>
+      </div>
+    );
+  }
+
+  if (notch) {
+    return (
+      <div className="flex h-full items-center justify-center gap-1.5">
+        <UpdateDot />
+        <FocusDot />
+        <Clock className="text-[13px] font-bold text-white" />
+      </div>
     );
   }
 

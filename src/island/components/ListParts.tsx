@@ -35,7 +35,7 @@ export function Switch({ on, label, disabled, onChange }: { on: boolean; label: 
         e.stopPropagation();
         onChange(!on);
       }}
-      className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors disabled:opacity-40 ${on ? "bg-[#2f7bff]" : "bg-white/20"}`}
+      className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors disabled:opacity-40 ${on ? "bg-white" : "bg-white/20"}`}
     >
       <span
         className="absolute top-[2px] left-[2px] h-[18px] w-[18px] rounded-full bg-white shadow transition-transform"

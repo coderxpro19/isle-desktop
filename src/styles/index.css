@@ -61,21 +61,38 @@ button:focus-visible {
 /* ── Settings window ── */
 html.settings-root,
 html.settings-root body {
-  background: #1d1d21;
+  background: #121214;
   color-scheme: dark;
 }
 .isle-settings {
-  --bg: #1d1d21;
-  --side: #17171a;
-  --card: #26262b;
-  --well: #303036;
-  --seg: #45454d;
-  --hover: #3a3a41;
-  --sel: #2f2f35;
+  --bg: #121214;
+  --card: #1c1c1f;
+  --well: #2a2a2e;
+  --seg: #45454c;
+  --hover: #34343a;
+  --sel: #2a2a2e;
   --line: rgba(255, 255, 255, 0.07);
-  --fg: #f2f2f5;
-  --dim: #9a9aa3;
-  --off: #4a4a52;
-  --accent: #2f7bff;
+  --fg: #f4f4f6;
+  --dim: #8f8f98;
+  --head: #b9b9c2;
+  --off: #3c3c42;
+  --on: #30d158;
+  background: var(--bg);
   font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+.isle-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: #3c3c42;
+}
+.isle-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
 }

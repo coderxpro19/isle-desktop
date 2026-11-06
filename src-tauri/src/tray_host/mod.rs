@@ -242,13 +242,21 @@ pub enum TrayButton {
 
 /// Click a tray icon. `x`/`y` are logical px inside the dock window (icon centre).
 #[tauri::command]
-pub fn tray_click(app: AppHandle, id: String, button: TrayButton, x: f64, y: f64) {
+/// `x`/`y` are logical px relative to the calling window (dock or island).
+pub fn tray_click(
+    app: AppHandle,
+    window: tauri::Window,
+    id: String,
+    button: TrayButton,
+    x: f64,
+    y: f64,
+) {
     let Some(icon) = app.state::<TrayHost>().icons.lock().get(&id).cloned() else {
         return;
     };
     #[cfg(windows)]
-    if let Some(dock) = app.get_webview_window(crate::dock::DOCK_LABEL) {
-        let (Ok(pos), Ok(k)) = (dock.outer_position(), dock.scale_factor()) else {
+    {
+        let (Ok(pos), Ok(k)) = (window.outer_position(), window.scale_factor()) else {
             return;
         };
         win::click(
@@ -259,7 +267,7 @@ pub fn tray_click(app: AppHandle, id: String, button: TrayButton, x: f64, y: f64
         );
     }
     #[cfg(not(windows))]
-    let _ = (icon, button, x, y);
+    let _ = (icon, button, x, y, window);
 }
 
 #[cfg(test)]

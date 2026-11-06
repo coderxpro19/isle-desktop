@@ -186,3 +186,40 @@ export const ClipboardIcon = (p: P) => (
 export const StarIcon = ({ filled, ...p }: P & { filled?: boolean }) => (
   <svg {...stroke(p)}><path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.3L12 16l-4.9 2.6 1.1-5.3-4-3.7 5.4-.6L12 4Z" fill={filled ? "currentColor" : "none"} /></svg>
 );
+const line = ({ size = 16, ...p }: P) => ({ width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, ...p });
+export const ChipIcon = (p: P) => (
+  <svg {...line(p)}><rect x="6" y="6" width="12" height="12" rx="2.5" /><path d="M10 10h4v4h-4zM9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" /></svg>
+);
+export const MemoryIcon = (p: P) => (
+  <svg {...line(p)}><rect x="3" y="7" width="18" height="10" rx="2" /><path d="M7 7v10M11 7v10M15 7v10M6 17v3M18 17v3" /></svg>
+);
+export const DiskIcon = (p: P) => (
+  <svg {...line(p)}><rect x="3" y="6" width="18" height="12" rx="3" /><path d="M7 14h.01M11 14h6" /></svg>
+);
+export const NetIcon = (p: P) => (
+  <svg {...line(p)}><path d="M8 4v16M4 16l4 4 4-4M16 20V4M12 8l4-4 4 4" /></svg>
+);
+export const ArrowLeftIcon = (p: P) => (
+  <svg {...line(p)}><path d="m15 5-7 7 7 7" /></svg>
+);
+export const ArrowRightIcon = (p: P) => (
+  <svg {...line(p)}><path d="m9 5 7 7-7 7" /></svg>
+);
+export const DockIcon = (p: P) => (
+  <svg {...line(p)}><rect x="3" y="14" width="18" height="6" rx="2" /><path d="M7 10h3v4M14 8h3v6" /></svg>
+);
+export const NotchIcon = (p: P) => (
+  <svg {...line(p)}><path d="M3 5h18M8 5v2.5a2.5 2.5 0 0 0 2.5 2.5h3A2.5 2.5 0 0 0 16 7.5V5" /><rect x="3" y="12" width="18" height="8" rx="2" /></svg>
+);
+export const LeafIcon = (p: P) => (
+  <svg {...line(p)}><rect x="3" y="7" width="16" height="10" rx="2.5" /><path d="M21 10.5v3M9.5 14.5c0-2.5 1.5-4 4.5-4.5-.3 3-1.8 4.5-4.5 4.5ZM9.5 14.5 12 12" /></svg>
+);
+export const GridIcon = (p: P) => (
+  <svg {...line(p)}><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
+);
+export const GearIcon = (p: P) => (
+  <svg {...line(p)}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>
+);
+export const RestartIcon = (p: P) => (
+  <svg {...line(p)}><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
+);

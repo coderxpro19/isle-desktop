@@ -15,6 +15,7 @@ pub fn settings_uri(page: &str) -> Option<&'static str> {
         "battery" => "ms-settings:batterysaver",
         "location" => "ms-settings:privacy-location",
         "taskmgr" => "taskmgr.exe",
+        "notificationCenter" => "ms-actioncenter:",
         _ => return None,
     })
 }

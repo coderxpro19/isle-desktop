@@ -21,6 +21,7 @@ pub struct Settings {
     pub dock: DockSettings,
     pub calendar: CalendarSettings,
     pub general: GeneralSettings,
+    pub overlays: OverlaySettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -79,6 +80,60 @@ pub struct IslandSettings {
     pub notifications: bool,
     /// Keep clipboard history (Alt+Shift+V).
     pub clipboard_history: bool,
+    /// Flush against the top edge like a notch, or a floating pill.
+    pub notch_style: NotchStyle,
+    /// How hovering behaves.
+    pub notch_behavior: NotchBehavior,
+    /// How long to rest on the island before it peeks (ms).
+    pub peek_delay_ms: u32,
+    /// Reopen on the last page used instead of the control centre.
+    pub remember_panel: bool,
+    /// Show visualiser and artwork while collapsed and music plays.
+    pub compact_mode: bool,
+    /// Status widgets either side of the clock in the open island.
+    pub widgets_left: Vec<String>,
+    pub widgets_right: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum NotchStyle {
+    #[default]
+    Notch,
+    Floating,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum NotchBehavior {
+    /// Hover peeks, click opens.
+    #[default]
+    Smart,
+    /// Hover opens fully.
+    Hover,
+    /// Nothing on hover; click opens.
+    Click,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct OverlaySettings {
+    /// Volume HUD slides in from the left edge on hover.
+    pub volume_edge: bool,
+    /// Isle brightness HUD (right edge).
+    pub brightness_hud: bool,
+    /// Brightness HUD slides in from the right edge on hover.
+    pub brightness_edge: bool,
+}
+
+impl Default for OverlaySettings {
+    fn default() -> Self {
+        Self {
+            volume_edge: true,
+            brightness_hud: true,
+            brightness_edge: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -105,6 +160,8 @@ pub struct DockSettings {
     pub icon_size: u32,
     /// `None` until first run, when sensible defaults are filled in.
     pub pinned: Option<Vec<PinnedApp>>,
+    /// No bar behind the icons.
+    pub icon_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -124,6 +181,7 @@ impl Default for DockSettings {
             magnification: true,
             icon_size: 40,
             pinned: None,
+            icon_only: true,
         }
     }
 }
@@ -152,6 +210,10 @@ pub struct Appearance {
     pub reduce_motion: bool,
     /// Island / dock surface colour as #rrggbb.
     pub surface: String,
+    /// Round the top corners of the screen.
+    pub screen_corners: bool,
+    /// Opacity of the island and dock surfaces (0.5–1).
+    pub background_opacity: f32,
 }
 
 impl Default for Settings {
@@ -164,6 +226,7 @@ impl Default for Settings {
             dock: Default::default(),
             calendar: Default::default(),
             general: Default::default(),
+            overlays: Default::default(),
         }
     }
 }
@@ -183,6 +246,13 @@ impl Default for IslandSettings {
             volume_hud: true,
             notifications: true,
             clipboard_history: true,
+            notch_style: NotchStyle::Notch,
+            notch_behavior: NotchBehavior::Smart,
+            peek_delay_ms: 200,
+            remember_panel: true,
+            compact_mode: true,
+            widgets_left: vec!["weather".into(), "cpu".into()],
+            widgets_right: vec!["battery".into(), "ram".into()],
         }
     }
 }
@@ -194,6 +264,8 @@ impl Default for Appearance {
             corner_radius: 22,
             reduce_motion: false,
             surface: "#000000".into(),
+            screen_corners: true,
+            background_opacity: 1.0,
         }
     }
 }
@@ -286,6 +358,7 @@ pub fn apply(app: &AppHandle, s: &Settings) {
     crate::hud::set_enabled(s.island.volume_hud);
     crate::clipboard::set_enabled(s.island.clipboard_history);
     crate::autostart::set(s.general.start_with_windows);
+    crate::island::reposition(app);
     let _ = app.emit(events::SETTINGS_CHANGED, s);
     crate::dock::apply_settings(app);
 }

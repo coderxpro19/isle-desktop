@@ -47,7 +47,9 @@ pub fn spawn(app: AppHandle) {
                 hidden = full;
                 if full {
                     for (label, win) in app.webview_windows() {
-                        if (label.starts_with("island-") || label.starts_with("dock-"))
+                        if ["island-", "dock-", "edge-", "corners-"]
+                            .iter()
+                            .any(|p| label.starts_with(p))
                             && win.is_visible().unwrap_or(false)
                         {
                             let _ = win.hide();

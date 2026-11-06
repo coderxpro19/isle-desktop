@@ -36,6 +36,7 @@ export function Dock() {
   const trayCount = useDock((s) => s.tray.length);
   const { iconSize, magnification, mode } = useDock((s) => s.settings.dock);
   const surface = useDock((s) => s.settings.appearance.surface);
+  const iconOnly = useDock((s) => s.settings.dock.iconOnly);
   const hovered = useDock((s) => s.hovered);
   const overlap = useDock((s) => s.overlap);
   const menu = useDock((s) => s.menu);
@@ -87,7 +88,11 @@ export function Dock() {
       <div
         ref={bar}
         data-dock-bar
-        className="absolute left-1/2 flex items-end rounded-[20px] border border-white/10 bg-[color-mix(in_srgb,var(--isle-dock,#141418)_78%,transparent)] px-2 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+        className={`absolute left-1/2 flex items-end rounded-[20px] px-2 ${
+          iconOnly
+            ? "border border-transparent [filter:drop-shadow(0_2px_6px_rgba(0,0,0,.35))]"
+            : "border border-white/10 bg-[color-mix(in_srgb,var(--isle-dock,#141418)_78%,transparent)] shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+        }`}
         style={{
           bottom: BOTTOM,
           height: barH,

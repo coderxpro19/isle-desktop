@@ -23,7 +23,11 @@ async function boot() {
       if (e.key === "F5" || ((e.ctrlKey || e.metaKey) && ["r", "p", "f", "g", "j", "u"].includes(k))) e.preventDefault();
     });
     let view = <Island />;
-    if (label.startsWith("dock-")) {
+    if (label.startsWith("edge-") || label.startsWith("corners-")) {
+      document.documentElement.classList.add("overlay-root");
+      const { Edge, Corners } = await import("@/overlays/Edge");
+      view = label.startsWith("corners-") ? <Corners /> : <Edge side={label.startsWith("edge-l") ? "left" : "right"} />;
+    } else if (label.startsWith("dock-")) {
       const { Dock } = await import("@/dock/Dock");
       view = <Dock />;
     } else if (label === "launcher") {
@@ -39,7 +43,11 @@ async function boot() {
     // `?view=dock` / `?view=launcher` render a window's UI exactly as the
     // native window does (full-window, no dev container) for layout checks.
     const view = new URLSearchParams(location.search).get("view");
-    if (view === "settings") {
+    if (view === "edge" || view === "corners") {
+      const { Edge, Corners } = await import("@/overlays/Edge");
+      const side = new URLSearchParams(location.search).get("side") === "right" ? "right" : "left";
+      root.render(<StrictMode>{view === "corners" ? <Corners /> : <Edge side={side} />}</StrictMode>);
+    } else if (view === "settings") {
       document.documentElement.classList.add("settings-root");
       const { SettingsApp } = await import("@/settings/SettingsApp");
       root.render(<StrictMode><SettingsApp /></StrictMode>);

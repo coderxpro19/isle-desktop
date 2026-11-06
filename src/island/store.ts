@@ -18,7 +18,7 @@ export type Tab = "home" | "controls" | "clock" | "clipboard" | "notifications" 
 export type ShelfItem = FileInfo & { thumb?: string | null };
 export type ClockView = "timer" | "stopwatch" | "focus" | "calendar";
 /** Sub-page inside the Controls tab. */
-export type ControlsView = "main" | "wifi" | "bluetooth";
+export type ControlsView = "main" | "wifi" | "bluetooth" | "tray";
 
 /** How many seconds of stats history the sparklines keep. */
 export const STATS_HISTORY = 60;
@@ -97,7 +97,7 @@ export const useIsland = create<IslandState>((set, get) => ({
   hovered: false,
   transient: null,
   now: new Date(),
-  tab: "home",
+  tab: "controls",
   pins: 0,
   controls: null,
   stats: [],
@@ -118,7 +118,12 @@ export const useIsland = create<IslandState>((set, get) => ({
   calendarError: null,
 
   // Collapsing resets to the home tab, like iOS widgets do.
-  setMode: (mode) => set(mode === "compact" ? { mode, tab: "home", controlsView: "main", islandMenu: false } : { mode }),
+  setMode: (mode) =>
+    set(
+      mode === "compact"
+        ? { mode, controlsView: "main", islandMenu: false, ...(get().settings.island.rememberPanel ? {} : { tab: "controls" as Tab }) }
+        : { mode },
+    ),
   setTab: (tab) => set({ tab, controlsView: "main" }),
   pin() {
     set((s) => ({ pins: s.pins + 1 }));

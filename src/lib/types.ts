@@ -59,6 +59,13 @@ export interface Settings {
     volumeHud: boolean;
     notifications: boolean;
     clipboardHistory: boolean;
+    notchStyle: NotchStyle;
+    notchBehavior: NotchBehavior;
+    peekDelayMs: number;
+    rememberPanel: boolean;
+    compactMode: boolean;
+    widgetsLeft: WidgetId[];
+    widgetsRight: WidgetId[];
   };
   appearance: {
     accent: string;
@@ -66,12 +73,20 @@ export interface Settings {
     reduceMotion: boolean;
     /** Island / dock surface colour (#rrggbb). */
     surface: string;
+    screenCorners: boolean;
+    /** 0.5–1 */
+    backgroundOpacity: number;
   };
   weather: WeatherSettings;
   dock: DockSettings;
   calendar: { feeds: CalendarFeed[] };
   general: { startWithWindows: boolean };
+  overlays: { volumeEdge: boolean; brightnessHud: boolean; brightnessEdge: boolean };
 }
+
+export type NotchStyle = "notch" | "floating";
+export type NotchBehavior = "smart" | "hover" | "click";
+export type WidgetId = "weather" | "cpu" | "ram" | "battery" | "disk" | "net" | "gpu";
 
 export interface CalendarFeed {
   url: string;
@@ -93,6 +108,7 @@ export interface DockSettings {
   magnification: boolean;
   iconSize: number;
   pinned: PinnedApp[] | null;
+  iconOnly: boolean;
 }
 
 export interface WeatherLocation {
@@ -121,12 +137,20 @@ export const DEFAULT_SETTINGS: Settings = {
     volumeHud: true,
     notifications: true,
     clipboardHistory: true,
+    notchStyle: "notch",
+    notchBehavior: "smart",
+    peekDelayMs: 200,
+    rememberPanel: true,
+    compactMode: true,
+    widgetsLeft: ["weather", "cpu"],
+    widgetsRight: ["battery", "ram"],
   },
-  appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false, surface: "#000000" },
+  appearance: { accent: "artwork", cornerRadius: 22, reduceMotion: false, surface: "#000000", screenCorners: true, backgroundOpacity: 1 },
   weather: { location: null, fahrenheit: false },
-  dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 40, pinned: null },
+  dock: { enabled: true, replaceTaskbar: true, mode: "fixed", magnification: true, iconSize: 40, pinned: null, iconOnly: true },
   calendar: { feeds: [] },
   general: { startWithWindows: true },
+  overlays: { volumeEdge: true, brightnessHud: true, brightnessEdge: true },
 };
 
 export interface Notice {
@@ -239,7 +263,7 @@ export interface StatsTick {
 }
 
 export type SettingsPage =
-  | "sound" | "display" | "wifi" | "network" | "bluetooth" | "focus" | "notifications" | "battery" | "location" | "taskmgr";
+  | "sound" | "display" | "wifi" | "network" | "bluetooth" | "focus" | "notifications" | "battery" | "location" | "taskmgr" | "notificationCenter";
 
 export interface Weather {
   fetchedAt: number;
