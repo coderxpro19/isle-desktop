@@ -59,6 +59,7 @@ export function Markdown({ text }: { text: string }) {
 export function AssistantPanel() {
   const backend = useIsland((s) => s.backend);
   const ai = useIsland((s) => s.settings.ai);
+  const updateSettings = useIsland((s) => s.updateSettings);
   const msgs = useIsland((s) => s.aiMessages);
   const busy = useIsland((s) => s.aiBusy);
   const error = useIsland((s) => s.aiError);
@@ -150,7 +151,23 @@ export function AssistantPanel() {
             </div>
           ),
         )}
-        {error && <div className="rounded-lg bg-[#ff453a]/15 px-3 py-2 text-[12px] text-[#ff8a80]">{error}</div>}
+        {error && (
+          <div className="rounded-lg bg-[#ff453a]/15 px-3 py-2 text-[12px] text-[#ff8a80]">
+            {error}
+            {ai.model && /model/i.test(error) && (
+              <button
+                type="button"
+                className="mt-1.5 block font-semibold text-white underline"
+                onClick={() => {
+                  updateSettings((s) => ({ ...s, ai: { ...s.ai, model: "" } }));
+                  useIsland.setState({ aiError: null });
+                }}
+              >
+                Use the recommended model instead
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-2 flex items-end gap-2 rounded-2xl bg-white/[.08] py-1.5 pr-1.5 pl-3 ring-1 ring-white/10 focus-within:ring-white/25">
@@ -194,6 +211,11 @@ function Small({ children, onClick }: { children: ReactNode; onClick(): void }) 
 }
 
 let current: string | null = null;
+
+/** Model ids are single tokens like "gemini-2.5-flash", "gpt-4o-mini", "llama3.2:3b". */
+export function looksLikeModel(m: string): boolean {
+  return /^[a-z0-9][a-z0-9._:/-]*$/i.test(m) && /[\d-]/.test(m);
+}
 
 /** Send `text` as the next user turn and stream the reply into the store. */
 export async function ask(text: string) {
@@ -242,6 +264,7 @@ function Setup({ keys, onDone, canClose }: { keys: Record<string, boolean>; onDo
   const updateSettings = useIsland((s) => s.updateSettings);
   const [key, setKey] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [advanced, setAdvanced] = useState(false);
   const p = ai.provider;
   const setAi = (patch: Partial<typeof ai>) => updateSettings((s) => ({ ...s, ai: { ...s.ai, ...patch } }));
 
@@ -308,12 +331,30 @@ function Setup({ keys, onDone, canClose }: { keys: Record<string, boolean>; onDo
           className="h-8 rounded-lg bg-white/[.08] px-3 text-[12px] text-white outline-none ring-1 ring-white/10 placeholder:text-white/35 focus:ring-white/30"
         />
       )}
-      <input
-        value={ai.model}
-        onChange={(e) => setAi({ model: e.target.value })}
-        placeholder="Model (leave empty for the recommended one)"
-        className="h-8 rounded-lg bg-white/[.08] px-3 text-[12px] text-white outline-none ring-1 ring-white/10 placeholder:text-white/35 focus:ring-white/30"
-      />
+      {advanced || ai.model ? (
+        <div className="flex flex-col gap-1">
+          <input
+            value={ai.model}
+            onChange={(e) => setAi({ model: e.target.value.replace(/\s+/g, "") })}
+            placeholder="AI model id, e.g. gemini-2.5-flash (empty = recommended)"
+            className={`h-8 rounded-lg bg-white/[.08] px-3 text-[12px] text-white outline-none ring-1 placeholder:text-white/35 focus:ring-white/30 ${
+              ai.model && !looksLikeModel(ai.model) ? "ring-[#ff453a]/60" : "ring-white/10"
+            }`}
+          />
+          {ai.model && !looksLikeModel(ai.model) && (
+            <span className="text-[11px] text-[#ff8a80]">
+              That doesn't look like a model id.{" "}
+              <button type="button" className="font-semibold underline" onClick={() => setAi({ model: "" })}>
+                Use the recommended model
+              </button>
+            </span>
+          )}
+        </div>
+      ) : (
+        <button type="button" onClick={() => setAdvanced(true)} className="self-start text-[11px] text-white/40 hover:text-white/70">
+          Advanced: choose a specific model…
+        </button>
+      )}
       {err && <div className="text-[11.5px] text-[#ff8a80]">{err}</div>}
       <div className="mt-auto flex justify-end gap-2">
         {keys[p] && p !== "custom" && (

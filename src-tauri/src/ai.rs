@@ -72,6 +72,14 @@ pub fn find_provider(id: &str) -> Option<&'static Provider> {
     PROVIDERS.iter().find(|p| p.id == id)
 }
 
+/// Model ids are single tokens like "gemini-2.5-flash", "gpt-4o-mini", "llama3.2:3b".
+pub fn looks_like_model(m: &str) -> bool {
+    !m.is_empty()
+        && m.chars()
+            .all(|c| c.is_ascii_alphanumeric() || "._:/-".contains(c))
+        && m.chars().any(|c| c.is_ascii_digit() || c == '-')
+}
+
 /* ───────────── request / response shapes ───────────── */
 
 pub fn request(kind: Kind, model: &str, system: &str, msgs: &[Msg]) -> serde_json::Value {
@@ -287,8 +295,9 @@ pub async fn ai_ask(
     if key.is_none() && p.id != "custom" {
         return Err("Add your API key first.".into());
     }
+    // Ignore anything that isn't a model id (e.g. a name typed in by mistake).
     let model = model
-        .filter(|m| !m.trim().is_empty())
+        .filter(|m| looks_like_model(m.trim()))
         .unwrap_or_else(|| p.model.to_string());
     let base = base_url
         .filter(|b| p.id == "custom" && !b.trim().is_empty())
@@ -418,6 +427,14 @@ mod tests {
         let a = request(Kind::Anthropic, "claude", "sys", &msgs);
         assert_eq!(a["system"], "sys");
         assert_eq!(a["messages"].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn model_ids() {
+        assert!(!looks_like_model("Prince"));
+        assert!(!looks_like_model("my model"));
+        assert!(looks_like_model("gemini-2.5-flash"));
+        assert!(looks_like_model("llama3.2:3b"));
     }
 
     #[test]
