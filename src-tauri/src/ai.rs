@@ -295,88 +295,119 @@ fn version(id: &str) -> Vec<u32> {
         .collect()
 }
 
-/// Choose the best everyday model from a provider's model list.
-pub fn pick_model(provider: &str, ids: &[String]) -> Option<String> {
+/// Everyday chat models from a provider's model list, best first.
+pub fn rank_models(provider: &str, ids: &[String]) -> Vec<String> {
     let has = |id: &str, words: &[&str]| words.iter().any(|w| id.contains(w));
     let newest = |mut v: Vec<&String>| {
         v.sort_by(|a, b| version(b).cmp(&version(a)).then(a.len().cmp(&b.len())));
-        v.first().map(|s| s.to_string())
+        v.into_iter().cloned().collect::<Vec<String>>()
     };
-    let ids: Vec<&String> = ids.iter().collect();
+    let mut out: Vec<String> = Vec::new();
+    let mut add = |v: Vec<String>| {
+        for m in v {
+            if !out.contains(&m) {
+                out.push(m);
+            }
+        }
+    };
     match provider {
         "gemini" => {
-            let flash: Vec<&String> = ids
-                .iter()
-                .copied()
-                .filter(|i| i.contains("gemini") && i.contains("flash"))
-                .collect();
-            let avoid = [
-                "lite",
+            let never = [
                 "image",
                 "tts",
                 "audio",
                 "live",
                 "embedding",
-                "thinking",
-                "8b",
+                "aqa",
+                "veo",
+                "imagen",
+                "robotics",
+                "computer-use",
             ];
-            let stable: Vec<&String> = flash
+            let g: Vec<&String> = ids
                 .iter()
-                .copied()
-                .filter(|i| !has(i, &avoid) && !has(i, &["preview", "exp"]))
+                .filter(|i| i.contains("gemini") && !has(i, &never))
                 .collect();
-            let any: Vec<&String> = flash.iter().copied().filter(|i| !has(i, &avoid)).collect();
-            newest(stable).or_else(|| newest(any)).or_else(|| {
-                newest(
-                    ids.iter()
-                        .copied()
-                        .filter(|i| i.contains("gemini"))
-                        .collect(),
-                )
-            })
+            let preview = ["preview", "exp"];
+            let flash = |lite: bool, pre: bool| {
+                g.iter()
+                    .copied()
+                    .filter(|i| {
+                        i.contains("flash")
+                            && i.contains("lite") == lite
+                            && has(i, &preview) == pre
+                            && !i.contains("thinking")
+                    })
+                    .collect::<Vec<_>>()
+            };
+            add(newest(flash(false, false)));
+            add(newest(flash(true, false)));
+            add(newest(flash(false, true)));
+            add(newest(flash(true, true)));
+            add(newest(
+                g.iter().copied().filter(|i| !has(i, &preview)).collect(),
+            ));
+            add(newest(g));
         }
         "openai" => {
-            let chat = |i: &&String| {
-                i.starts_with("gpt-")
-                    && !has(
-                        i,
-                        &[
-                            "audio",
-                            "realtime",
-                            "search",
-                            "transcribe",
-                            "tts",
-                            "image",
-                            "instruct",
-                        ],
-                    )
-            };
-            newest(
-                ids.iter()
+            let chat: Vec<&String> = ids
+                .iter()
+                .filter(|i| {
+                    i.starts_with("gpt-")
+                        && !has(
+                            i,
+                            &[
+                                "audio",
+                                "realtime",
+                                "search",
+                                "transcribe",
+                                "tts",
+                                "image",
+                                "instruct",
+                            ],
+                        )
+                })
+                .collect();
+            add(newest(
+                chat.iter()
                     .copied()
-                    .filter(chat)
                     .filter(|i| i.ends_with("-mini"))
                     .collect(),
-            )
-            .or_else(|| newest(ids.iter().copied().filter(chat).collect()))
+            ));
+            add(newest(chat));
         }
         // The list is newest-first.
-        "anthropic" => ids
-            .iter()
-            .find(|i| i.contains("haiku"))
-            .or(ids.first())
-            .map(|s| s.to_string()),
-        "groq" => ids
-            .iter()
-            .find(|i| i.contains("versatile"))
-            .or_else(|| {
-                ids.iter()
-                    .find(|i| i.contains("llama") && !has(i, &["guard", "whisper"]))
-            })
-            .or(ids.iter().find(|i| !has(i, &["whisper", "guard", "tts"])))
-            .map(|s| s.to_string()),
-        _ => None,
+        "anthropic" => {
+            add(ids
+                .iter()
+                .filter(|i| i.contains("haiku"))
+                .cloned()
+                .collect());
+            add(ids.to_vec());
+        }
+        "groq" => {
+            let ok = |i: &&String| !has(i, &["whisper", "guard", "tts", "orpheus"]);
+            add(ids
+                .iter()
+                .filter(|i| i.contains("versatile"))
+                .cloned()
+                .collect());
+            add(ids
+                .iter()
+                .filter(ok)
+                .filter(|i| i.contains("llama"))
+                .cloned()
+                .collect());
+            add(ids.iter().filter(ok).cloned().collect());
+        }
+        _ => {}
     }
+    out
+}
+
+/// The best everyday model from a provider's model list.
+pub fn pick_model(provider: &str, ids: &[String]) -> Option<String> {
+    rank_models(provider, ids).into_iter().next()
 }
 
 /// Model ids available to this key.
@@ -444,6 +475,8 @@ pub fn suggested_model(err: &str) -> Option<String> {
 enum Failure {
     /// The model doesn't exist (any more): try another.
     Model(String),
+    /// Out of quota for this model (free tiers often exclude the newest models).
+    Quota(String),
     /// Overloaded or a hiccup (503, 500, 529, error mid-stream, empty reply): retry / use another model.
     Busy(String),
     Other(String),
@@ -508,76 +541,87 @@ pub async fn ai_ask(
             }
         }
     };
-    let mut retried = false;
-    let mut busy_tries = 0;
-    let mut tried: Vec<String> = vec![model.clone()];
+    let mut tried = vec![model.clone()];
+    let mut waited = false;
+    let mut ranked: Option<Vec<String>> = None;
     loop {
-        match stream(&app, &id, p, &base, key.as_deref(), &model, &messages).await {
-            Ok(full) => return Ok(full),
-            Err(Failure::Busy(msg)) if busy_tries < 2 => {
-                busy_tries += 1;
-                if busy_tries == 1 {
-                    // Spikes are usually brief: one quick retry on the same model.
-                    log::info!("ai: {model} busy ({msg}), retrying");
-                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-                    continue;
+        let failure = match stream(&app, &id, p, &base, key.as_deref(), &model, &messages).await {
+            Ok(full) => {
+                if auto {
+                    resolved().lock().insert(p.id.to_string(), model.clone());
                 }
-                // Still busy: another model from the same provider.
-                let other = list_models(p, &base, key.as_deref())
-                    .await
-                    .ok()
-                    .and_then(|ids| {
-                        pick_model(
-                            p.id,
-                            &ids.into_iter()
-                                .filter(|i| !tried.contains(i))
-                                .collect::<Vec<_>>(),
-                        )
-                    });
-                match other {
-                    Some(m) => {
-                        log::info!("ai: {model} still busy, trying {m}");
-                        tried.push(m.clone());
-                        model = m;
-                    }
-                    None => return Err(busy_text(&msg)),
-                }
+                return Ok(full);
             }
-            Err(Failure::Busy(msg)) => return Err(busy_text(&msg)),
-            Err(Failure::Model(msg)) if !retried => {
-                retried = true;
-                // Retired or unknown model: use the provider's suggestion, else the newest from the list.
-                let next = match suggested_model(&msg).filter(|m| *m != model) {
-                    Some(m) => Some(m),
-                    None => list_models(p, &base, key.as_deref())
-                        .await
-                        .ok()
-                        .and_then(|ids| {
-                            pick_model(
-                                p.id,
-                                &ids.into_iter().filter(|i| *i != model).collect::<Vec<_>>(),
-                            )
-                        }),
-                };
-                match next.filter(|m| *m != model) {
-                    Some(m) => {
-                        tried.push(m.clone());
-                        log::info!("ai: {model} unavailable, switching to {m}");
-                        if auto {
-                            resolved().lock().insert(p.id.to_string(), m.clone());
-                        }
-                        model = m;
-                    }
-                    None => return Err(msg),
-                }
+            Err(f) => f,
+        };
+        let msg = match failure {
+            Failure::Busy(msg) if !waited => {
+                // Spikes are usually brief: one quick retry on the same model.
+                waited = true;
+                log::warn!("ai: {model} busy ({msg}), retrying");
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                continue;
             }
-            Err(Failure::Model(msg) | Failure::Other(msg)) => return Err(msg),
+            Failure::Other(msg) => {
+                log::warn!("ai: {model} failed: {msg}");
+                return Err(msg);
+            }
+            Failure::Busy(msg) | Failure::Model(msg) | Failure::Quota(msg) => msg,
+        };
+        log::warn!("ai: {model} failed: {msg}");
+        // Another model this key can use: the provider's suggestion, else the next best.
+        if ranked.is_none() {
+            ranked = Some(match list_models(p, &base, key.as_deref()).await {
+                Ok(ids) => {
+                    log::info!("ai: {} models available: {}", ids.len(), ids.join(", "));
+                    rank_models(p.id, &ids)
+                }
+                Err(e) => {
+                    log::warn!("ai: listing models failed: {e}");
+                    Vec::new()
+                }
+            });
+        }
+        let next = suggested_model(&msg)
+            .filter(|m| !tried.contains(m))
+            .or_else(|| {
+                ranked
+                    .iter()
+                    .flatten()
+                    .find(|m| !tried.contains(m))
+                    .cloned()
+            });
+        match next {
+            Some(m) if tried.len() < 6 => {
+                log::info!("ai: switching from {model} to {m}");
+                tried.push(m.clone());
+                model = m;
+            }
+            _ => {
+                if auto {
+                    resolved().lock().remove(p.id);
+                }
+                return Err(final_text(&msg));
+            }
         }
     }
 }
 
-fn busy_text(msg: &str) -> String {
-    format!("The AI service is overloaded right now ({msg}). Try again in a minute, or switch provider.")
+/// The last error, made readable.
+fn final_text(msg: &str) -> String {
+    let l = msg.to_lowercase();
+    if l.contains("quota") || l.contains("resource_exhausted") || l.contains("limit: 0") {
+        format!("Your key has no free quota left for these models right now. Try again later, or use another provider (Groq is free). Details: {msg}")
+    } else if l.starts_with("503")
+        || l.starts_with("500")
+        || l.contains("overloaded")
+        || l.contains("high demand")
+        || l == "empty reply"
+    {
+        format!("The AI service is overloaded right now. Try again in a minute, or switch provider. ({msg})")
+    } else {
+        msg.to_string()
+    }
 }
 
 async fn stream(
@@ -622,8 +666,16 @@ async fn stream(
         let msg = error_text(&text);
         return Err(match status.as_u16() {
             401 | 403 => Failure::Other(format!("Your API key was rejected ({msg}).")),
-            429 => Failure::Other("Rate limit reached — wait a moment and try again.".into()),
-            500 | 502 | 503 | 504 | 529 => Failure::Busy(msg),
+            429 => {
+                let l = msg.to_lowercase();
+                if l.contains("quota") || l.contains("resource_exhausted") || l.contains("limit: 0")
+                {
+                    Failure::Quota(format!("{status}: {msg}"))
+                } else {
+                    Failure::Busy(format!("{status}: {msg}"))
+                }
+            }
+            500 | 502 | 503 | 504 | 529 => Failure::Busy(format!("{status}: {msg}")),
             404 => Failure::Model(format!("{status}: {msg}")),
             400 if msg.to_lowercase().contains("model") => {
                 Failure::Model(format!("{status}: {msg}"))
@@ -781,6 +833,33 @@ mod tests {
         // The first models/… is the retired one; the suggestion is the last mention.
         assert_eq!(suggested_model(e).as_deref(), Some("gemini-3.8-flash"));
         assert_eq!(suggested_model("400: bad request"), None);
+    }
+
+    #[test]
+    fn ranks_fallbacks() {
+        let v = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let g = v(&[
+            "gemini-3.8-flash",
+            "gemini-3.8-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-3.9-flash-preview",
+            "gemini-3.8-pro",
+            "gemini-2.5-flash-image",
+            "text-embedding-004",
+        ]);
+        assert_eq!(
+            rank_models("gemini", &g),
+            v(&[
+                "gemini-3.8-flash",
+                "gemini-2.5-flash",
+                "gemini-3.8-flash-lite",
+                "gemini-3.9-flash-preview",
+                "gemini-3.8-pro"
+            ])
+        );
+        assert!(
+            final_text("429 Too Many Requests: Quota exceeded, limit: 0").contains("no free quota")
+        );
     }
 
     #[test]
