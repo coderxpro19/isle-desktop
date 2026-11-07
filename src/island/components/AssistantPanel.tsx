@@ -336,7 +336,7 @@ function Setup({ keys, onDone, canClose }: { keys: Record<string, boolean>; onDo
           <input
             value={ai.model}
             onChange={(e) => setAi({ model: e.target.value.replace(/\s+/g, "") })}
-            placeholder="AI model id, e.g. gemini-2.5-flash (empty = recommended)"
+            placeholder="AI model id, e.g. gemini-3.8-flash (empty = recommended)"
             className={`h-8 rounded-lg bg-white/[.08] px-3 text-[12px] text-white outline-none ring-1 placeholder:text-white/35 focus:ring-white/30 ${
               ai.model && !looksLikeModel(ai.model) ? "ring-[#ff453a]/60" : "ring-white/10"
             }`}
