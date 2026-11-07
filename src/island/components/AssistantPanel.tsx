@@ -154,6 +154,19 @@ export function AssistantPanel() {
         {error && (
           <div className="rounded-lg bg-[#ff453a]/15 px-3 py-2 text-[12px] text-[#ff8a80]">
             {error}
+            {msgs.at(-1)?.role === "user" && (
+              <button
+                type="button"
+                className="mt-1.5 block font-semibold text-white underline"
+                onClick={() => {
+                  const last = msgs.at(-1)!.content;
+                  useIsland.setState((s) => ({ aiMessages: s.aiMessages.slice(0, -1), aiError: null }));
+                  void ask(last);
+                }}
+              >
+                Try again
+              </button>
+            )}
             {ai.model && /model/i.test(error) && (
               <button
                 type="button"

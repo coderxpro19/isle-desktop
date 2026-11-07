@@ -1886,7 +1886,7 @@ checksum = "791930b43c0d5973160d90a8f3894509f2b273430f5c5c73b668636d0287c5c0"
 
 [[package]]
 name = "isle"
-version = "0.13.2"
+version = "0.13.3"
 dependencies = [
  "base64 0.22.1",
  "cpal",
@@ -1905,6 +1905,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
+ "tokio",
  "windows 0.62.2",
  "windows-collections",
  "windows-core 0.62.2",

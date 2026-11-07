@@ -444,7 +444,25 @@ pub fn suggested_model(err: &str) -> Option<String> {
 enum Failure {
     /// The model doesn't exist (any more): try another.
     Model(String),
+    /// Overloaded or a hiccup (503, 500, 529, error mid-stream, empty reply): retry / use another model.
+    Busy(String),
     Other(String),
+}
+
+/// An error object sent inside the stream (HTTP 200 followed by `data: {"error": …}`).
+pub fn stream_error(data: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(data).ok()?;
+    // Gemini/OpenAI: {"error": {...}}; Anthropic: {"type": "error", "error": {...}}.
+    if !v["error"].is_object() && v["type"] != "error" {
+        return None;
+    }
+    let e = &v["error"];
+    Some(
+        e["message"]
+            .as_str()
+            .unwrap_or("The AI service reported an error.")
+            .to_string(),
+    )
 }
 
 /// Ask the model; streams `ai://chunk` and resolves with the full reply.
@@ -491,9 +509,41 @@ pub async fn ai_ask(
         }
     };
     let mut retried = false;
+    let mut busy_tries = 0;
+    let mut tried: Vec<String> = vec![model.clone()];
     loop {
         match stream(&app, &id, p, &base, key.as_deref(), &model, &messages).await {
             Ok(full) => return Ok(full),
+            Err(Failure::Busy(msg)) if busy_tries < 2 => {
+                busy_tries += 1;
+                if busy_tries == 1 {
+                    // Spikes are usually brief: one quick retry on the same model.
+                    log::info!("ai: {model} busy ({msg}), retrying");
+                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                    continue;
+                }
+                // Still busy: another model from the same provider.
+                let other = list_models(p, &base, key.as_deref())
+                    .await
+                    .ok()
+                    .and_then(|ids| {
+                        pick_model(
+                            p.id,
+                            &ids.into_iter()
+                                .filter(|i| !tried.contains(i))
+                                .collect::<Vec<_>>(),
+                        )
+                    });
+                match other {
+                    Some(m) => {
+                        log::info!("ai: {model} still busy, trying {m}");
+                        tried.push(m.clone());
+                        model = m;
+                    }
+                    None => return Err(busy_text(&msg)),
+                }
+            }
+            Err(Failure::Busy(msg)) => return Err(busy_text(&msg)),
             Err(Failure::Model(msg)) if !retried => {
                 retried = true;
                 // Retired or unknown model: use the provider's suggestion, else the newest from the list.
@@ -511,6 +561,7 @@ pub async fn ai_ask(
                 };
                 match next.filter(|m| *m != model) {
                     Some(m) => {
+                        tried.push(m.clone());
                         log::info!("ai: {model} unavailable, switching to {m}");
                         if auto {
                             resolved().lock().insert(p.id.to_string(), m.clone());
@@ -523,6 +574,10 @@ pub async fn ai_ask(
             Err(Failure::Model(msg) | Failure::Other(msg)) => return Err(msg),
         }
     }
+}
+
+fn busy_text(msg: &str) -> String {
+    format!("The AI service is overloaded right now ({msg}). Try again in a minute, or switch provider.")
 }
 
 async fn stream(
@@ -568,6 +623,7 @@ async fn stream(
         return Err(match status.as_u16() {
             401 | 403 => Failure::Other(format!("Your API key was rejected ({msg}).")),
             429 => Failure::Other("Rate limit reached — wait a moment and try again.".into()),
+            500 | 502 | 503 | 504 | 529 => Failure::Busy(msg),
             404 => Failure::Model(format!("{status}: {msg}")),
             400 if msg.to_lowercase().contains("model") => {
                 Failure::Model(format!("{status}: {msg}"))
@@ -577,20 +633,32 @@ async fn stream(
     }
     let mut sse = Sse::default();
     let mut full = String::new();
+    let mut stopped = false;
     while let Some(bytes) = resp
         .chunk()
         .await
         .map_err(|e| Failure::Other(e.to_string()))?
     {
         if cancelled().lock().remove(id) {
+            stopped = true;
             break;
         }
         for data in sse.feed(&bytes) {
+            if let Some(e) = stream_error(&data) {
+                return Err(if full.is_empty() {
+                    Failure::Busy(e)
+                } else {
+                    Failure::Other(e)
+                });
+            }
             if let Some(d) = delta(p.kind, &data) {
                 full.push_str(&d);
                 let _ = app.emit("ai://chunk", Chunk { id, delta: &d });
             }
         }
+    }
+    if full.trim().is_empty() && !stopped {
+        return Err(Failure::Busy("empty reply".into()));
     }
     Ok(full)
 }
@@ -713,6 +781,23 @@ mod tests {
         // The first models/… is the retired one; the suggestion is the last mention.
         assert_eq!(suggested_model(e).as_deref(), Some("gemini-3.8-flash"));
         assert_eq!(suggested_model("400: bad request"), None);
+    }
+
+    #[test]
+    fn spots_errors_inside_streams() {
+        assert_eq!(
+            stream_error(r#"{"error":{"code":503,"message":"overloaded"}}"#).as_deref(),
+            Some("overloaded")
+        );
+        assert_eq!(
+            stream_error(
+                r#"{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}"#
+            )
+            .as_deref(),
+            Some("Overloaded")
+        );
+        assert_eq!(stream_error(r#"{"candidates":[]}"#), None);
+        assert_eq!(stream_error("[DONE]"), None);
     }
 
     #[test]
